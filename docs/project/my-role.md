@@ -1,130 +1,189 @@
-# 내 역할 — 영역 C
+# 영역별 역할 분담 — 6명이 무엇을 맡았나
 
-> 저는 CareerTuner에서 "지원 건(Application Case) 단위로 사용자의 적합도를 분석하고, 부족한 역량·학습·자격증을 추천하며, 장기 취업 경향과 대시보드 요약을 만드는" AI 분석 파트(영역 C)를 맡았습니다. 핵심은 점수와 판정은 서버가 규칙으로 확정하고 LLM은 설명만 생성하는 뉴로-심볼릭 구조로 안정성을 잡은 것입니다.
+> CareerTuner는 6명이 **수직 분담**으로 만든 제품이다. 한 사람이 한 영역(A~F)의 사용자 화면·사용자 API·관리자 화면·관리자 API·AI 기능·DB 테이블을 **세로로 통째 소유**한다. 이 페이지는 그 6개 영역이 각각 무엇을 맡고, 어디서 만나며, 어떤 공통 경계를 공유하는지를 동등하게 정리한 지도다.
 
-## 1. 한 줄 정의
+이 학습 사이트는 특정 한 영역의 자랑이 아니라 **프로젝트 전체를 6등분해 동등하게 다루는 자료**다. 그래서 이 페이지도 A부터 F까지 빠짐없이 같은 비중으로 서술한다. 학습자는 여기서 자기 담당 영역을 골라 표에 대입한 뒤, 해당 영역의 심화 페이지로 들어가면 된다.
 
-영역 C는 **"이 사람이 이 공고에 얼마나 맞는가, 무엇이 부족하고 어떻게 메울 것인가"를 데이터로 답하는 AI 분석 계층**이다. 6명 수직 분담 중 한 축이며, 적합도(Fit)·취업경향(Career Trend)·대시보드 인사이트(Dashboard Insight)를 소유한다.
+## 1. 한 문장 정의 — 수직 분담이란
 
-## 2. 단어 뜻
+CareerTuner는 계층(컨트롤러/서비스/매퍼)으로 사람을 나누지 않는다. **기능 영역(A~F)으로** 나눈다.
 
-| 용어 | 풀이 |
-| --- | --- |
-| 지원 건 (Application Case) | CareerTuner의 핵심 단위. "공고 1개"가 아니라 "내가 이 공고에 지원하는 건 1개". 같은 공고도 사람·시점마다 다른 케이스 |
-| Fit Analysis | 공고 요구조건 vs 내 프로필을 비교해 적합도 점수·매칭/부족 역량·전략을 산출 |
-| Career Trend | 여러 지원 건을 가로질러 본 장기 패턴(반복 부족 역량, 지원 성향, 다음 방향) |
-| 뉴로-심볼릭 (Neuro-symbolic) | 신경망(LLM)과 규칙엔진(symbolic)을 결합. C에서는 **설명=LLM, 점수/판정=규칙** |
-| AutoPrep | 한 번의 실행으로 여러 영역(A~F) 준비를 의존 그래프대로 병렬 실행하는 오케스트레이터 |
-
-## 3. 왜 필요한가
-
-채용 앱이 "공고 보여주기"에서 끝나면 사용자는 "나는 합격 가능한가?"라는 진짜 질문에 답을 못 받는다. 영역 C가 없으면:
-
-- 점수·근거 없이 막연한 지원만 반복 → 사용자가 자기 격차를 모른다
-- LLM에게 점수까지 맡기면 **같은 입력에 점수가 흔들리고**, 환각으로 없는 자격증을 추천한다
-- 한 건씩만 보면 "나는 매번 SQL이 부족하다" 같은 **장기 패턴**을 놓친다
-
-그래서 C는 (1) 결정적인 점수 산정 + (2) 근거 가드를 건 LLM 설명 + (3) 여러 건을 가로지른 경향 분석을 함께 제공한다.
-
-## 4. CareerTuner에서 어디에 썼나 (실제 클래스/파일/테이블)
-
-전부 백엔드 `com.careertuner` 패키지 아래, 영역 C 소유.
-
-| 기능 | 핵심 클래스 | 테이블 | 상태 |
+| 분담 방식 | 자르는 축 | 한 기능을 만들 때 | 결과 |
 | --- | --- | --- | --- |
-| 적합도 분석 | `fitanalysis.service.FitAnalysisServiceImpl`, `fitanalysis.ai.FitAnalysisAiResult`, `fitanalysis.ai.prompt.FitAnalysisPromptCatalog` | `fit_analysis` | 구현됨 (OpenAI 기반) |
-| 적합도 폴백 디스패처 | `fitanalysis.ai.FallbackFitAnalysisAiService` (`@Primary`) | — | 구현됨 |
-| 부족역량/학습/자격증 추천 | `FitGapRecommendation`, `FitLearningRoadmapItem`, `FitCertificateRecommendation` | `fit_analysis` 하위 `learning_task`/`condition_match` | 구현됨 |
-| 장기 취업경향 | `analysis.ai.CareerAnalysisRunService`, `OpenAiCareerTrendAiService`, `CareerTrendPromptCatalog` | `career_analysis_run` | 구현됨 |
-| 대시보드 요약 | `dashboard.ai.OpenAiDashboardInsightAiService`, `DashboardInsightPromptCatalog` | — | 구현됨 |
-| 오케스트레이터 FIT 파트 | `ai.autoprep.handler.FitPrepHandler`, `ai.autoprep.AutoPrepOrchestrator` | — | 구현됨 |
-| 자체 LLM 커리어전략 모델 | `ml/career-strategy-llm/` (학습/평가 하니스), `OssFitAnalysisAiService` (서빙 자리) | — | **평가·설계 단계** |
-| 자동 스토리보드 파이프라인 | `docs/storyboard/C/` (서브모듈) | — | 구현됨 |
+| 수평 분담 | 계층(controller / service / mapper) | 6명이 동시에 손댐 | 책임 경계가 흐림 |
+| **수직 분담(채택)** | 기능 영역(A~F) | **한 영역 = 한 사람 = 한 폴더** | 디렉터리만 보면 소유자가 보임 |
 
-:::tip 정직하게 구분
-적합도·취업경향·대시보드 요약 **3개는 OpenAI 기반으로 실제 구현·동작**한다. 자체 LLM(Qwen2.5 3B + LoRA)은 골든셋 평가·RAG PoC까지 진행한 **연구/설계 단계**이고, 프로덕션 기본 경로는 아직 OpenAI다. `FallbackFitAnalysisAiService`가 자체모델(OSS) 자리를 미리 비워뒀고 기본값은 `provider=openai`다.
+핵심 단위는 공고가 아니라 **지원 건(Application Case)**이다. 한 지원 건을 6개 영역이 각자의 책임으로 함께 채운다 — A가 사람을, B가 공고를, C가 적합도를, D가 면접을, E가 첨삭·과금을, F가 커뮤니티·운영을.
+
+자세히: [팀 협업·시스템 경계](/flow/team-collaboration) · [데이터 소유권 경계 맵](/flow/data-ownership)
+
+## 2. 한눈에 — 6영역 역할 분담 표
+
+각 담당이 소유하는 것을 한 줄로 압축하면 다음과 같다. AI 기능 번호(#1~#34)는 6영역에 순서대로 배분돼 있다.
+
+| 영역 | 한 줄 역할 | 담당 AI | 대표 소유 테이블 | 심화 |
+| --- | --- | --- | --- | --- |
+| **A** | 회원·프로필·인증 — "사람"의 원천 데이터 소유 | #1~5 | `users`, `user_profile`, `user_consent` | [영역 A](/area-a/) |
+| **B** | 지원 건·공고·기업 분석 — "공고"를 구조화 데이터로 | #6~11 | `application_case`, `job_posting`, `job_analysis`, `company_analysis` | [영역 B](/area-b/) |
+| **C** | 적합도·전략·대시보드 — "이 공고에 맞나"를 점수로 | #12~18 | `fit_analysis`, `career_analysis_run` | [영역 C](/area-c/) |
+| **D** | 가상 면접 — 모의 면접 한 라운드를 끝까지 | #19~23 | `interview_session`, `interview_question`, `interview_answer` | [영역 D](/area-d/) |
+| **E** | 첨삭·결제·크레딧 — 작성물 개선 + 전사 과금 인프라 | #24~28 | `correction_request`, `payment`, `credit_transaction`, `plan` | [영역 E](/area-e/) |
+| **F** | 커뮤니티·고객센터·챗봇 — 사용자·운영의 공용 공간 | #29~34 | `community_post`, `support_ticket`, `notice`, `notification` | [영역 F](/area-f/) |
+
+:::tip 자기 담당을 표에 대입해 보기
+이 사이트를 학습할 때는 표에서 자기 담당 영역 한 줄을 먼저 고른 뒤, "내가 소유하는 테이블은 어디까지인가 / 어느 영역의 데이터를 읽기전용으로 받는가 / 어느 영역에 내 결과를 넘기는가"를 스스로 채워 보면 된다. 특정 영역을 우월하게 보지 말고, 6영역이 하나의 지원 건을 함께 채운다는 관점으로 보는 것이 핵심이다.
 :::
 
-## 5. 핵심 동작 원리
+## 3. 영역별 상세 — 무엇을 맡았나
 
-### 5-1. 적합도 1건이 만들어지는 흐름 (`FitAnalysisServiceImpl.generate`)
+각 영역의 "정체성 한 줄 + 소유 데이터 + 담당 AI + 다른 영역과의 접점"을 같은 틀로 정리한다. 깊은 동작 원리는 모두 해당 영역의 심화 페이지에 있다.
+
+### 영역 A — 회원·프로필·인증
+
+- **정체성:** 사용자가 **누구인지(인증)**, 자신을 **어떻게 설명하는지(프로필)**를 소유하는 "기반 신뢰 데이터 소유자". 프로필의 **단일 쓰기 책임자**.
+- **소유:** `users`, `user_social`, `email_verification`, `refresh_token`, `user_profile`, `user_consent`. JWT + Spring Security(STATELESS), 소셜 OAuth(Kakao/Naver/Google), BCrypt.
+- **담당 AI #1~5:** `ProfileAiService` 기반 이력서/프로필 요약·기술스택 추출·완성도 진단. (계획 5기능 중 실제 엔드포인트는 요약·스킬추출·완성도 3개로 통합.)
+- **접점:** A의 `user_profile`을 **B·C·D·E·F가 읽기전용으로 참조**한다. 원본 프로필을 고치는 건 A뿐이다.
+- 자세히: [영역 A 개요](/area-a/)
+
+### 영역 B — 지원 건·공고·기업 분석
+
+- **정체성:** "이 공고가 무엇을 요구하는가"를 구조화 데이터로 만들어 나머지 영역에 공급하는 **데이터 중추**. 철학은 "공고를 통째로 생성하지 않고 **근거 인용 구조화 추출**".
+- **소유:** `application_case`(모든 산출물의 루트), `job_posting`(revision append-only), `job_analysis`(필수/우대/담당업무), `company_analysis`(검증된 사실 vs AI 추론).
+- **담당 AI #6~11:** 공고 분석·필수/우대 추출·담당업무 요약·기업 현황 요약·면접 포인트 추출. 텍스트 추출에 PDFBox/Jsoup/OCR·SSRF 방어, Python 공고추출 워커.
+- **접점:** `required_skills`/`preferred_skills`/`duties`가 **C 적합도의 판정 기준**이 되고, 공고·기업 분석은 **D·E**가 맥락으로 받는다.
+- 자세히: [영역 B 개요](/area-b/)
+
+### 영역 C — 적합도·전략·대시보드
+
+- **정체성:** "이 공고에 **지원해도 되나 / 무엇을 보완하나 / 다음 어디로**"를 답하는 취업 전략 엔진. 핵심 철학은 **뉴로-심볼릭** — 점수·판단은 규칙엔진이 확정하고, LLM은 설명 텍스트만 만든다.
+- **소유:** `fit_analysis`(지원 건 1건의 적합도), `career_analysis_run`(여러 건을 가로지른 장기 경향), 대시보드 집계.
+- **담당 AI #12~18:** 적합도 분석, 부족역량·학습·자격증 추천, 지원 전략, 장기 취업경향, 대시보드 인사이트. 3단 폴백(자체 OSS→OpenAI→Mock), `guardApplyDecision` 가드레일, SHA-256 fingerprint 캐시.
+- **접점:** A 프로필 + B 공고분석을 읽어 비교하고, 분석 시점 입력을 `source_snapshot`으로 **동결**한다. C의 `fit_analysis`는 **D**가 면접 준비에 참고한다.
+- 자세히: [영역 C 개요](/area-c/)
+
+### 영역 D — 가상 면접
+
+- **정체성:** 지원 건 하나에 대한 **모의 면접 한 라운드 전체 사이클**(세션 → 질문 → 평가 → 리포트). 자체 LLM(OSS)으로의 점진 교체가 가장 활발히 진행되는 실험장.
+- **소유:** `interview_session`/`interview_question`/`interview_answer`, 멀티에이전트 채점 기록, 미디어 자산.
+- **담당 AI #19~23:** 예상 질문 생성, 꼬리 질문(압박 모드 전용), 면접관 진행, 답변 평가(멀티에이전트), 면접 리포트. `FallbackInterviewLlmGateway`(자체→Claude Haiku claude-haiku-4-5→OpenAI), SSE 실시간 진행.
+- **접점:** B 공고분석·C 적합도·A 프로필을 **읽기전용**으로 참조한다. D의 답변·세션 트레이스는 **C(장기경향)·E(첨삭 입력)**가 받는다.
+- 자세히: [영역 D 개요](/area-d/)
+
+### 영역 E — 첨삭·결제·크레딧
+
+- **정체성:** 성격이 다른 두 축을 묶는다. **첨삭** — 사용자가 이미 쓴 글을 지원에 맞게 다듬는 콘텐츠 개선("원문을 날조하지 않는다"). **과금 인프라** — 모든 영역의 AI가 의존하는 결제·구독·크레딧 공통 토대("잔액을 직접 만지지 않고 원장으로 기록").
+- **소유:** `correction_request`(원문 보존·`risk_flags` 허위검증), `payment`(PG 콜백 검증), `credit_transaction`(거래 장부), `plan`(게이팅).
+- **담당 AI #24~28:** 첨삭 4종(면접답변/자소서/이력서/포트폴리오, `correctionType`으로 분기) + 사용량 기반 요금제 추천. 자체 LLM 첨삭 모델(Qwen3 LoRA) 중점. `ai_usage_log` 전사 사용량 대시보드도 담당.
+- **접점:** A 자소서·이력서, B 공고 맥락, D 면접 답변을 입력으로 받되 **원본은 비파괴**, 새 결과 행을 append-only로 쌓는다.
+- 자세히: [영역 E 개요](/area-e/)
+
+### 영역 F — 커뮤니티·고객센터·챗봇
+
+- **정체성:** 사용자끼리 정보를 나누는 **커뮤니티**와 운영이 사용자와 대화하는 **고객센터·공지·알림**을 묶고 그 위에 **챗봇 3종**을 얹은 영역. 관통 원칙은 "AI는 운영자 보조이지 자동 처분자가 아니다".
+- **소유:** `community_post`/`community_comment`/반응·신고, `support_ticket`/`notice`/`faq`, `notification`/푸시, 챗봇 대화 메모리.
+- **담당 AI #29~34:** 후기 요약·태그 추천·실제 면접질문 추출·관심기반 추천·신고/부적절 분류·고객문의 답변 초안. LangChain4j 에이전트(인테이크 오케스트레이터 입구 `IntakeChatAgent`·`CommunityChatAgent`, `@Tool`, `MyBatisChatMemoryStore`), Ollama qwen3.
+- **접점:** F#31이 추출한 실제 면접질문은 **D의 RAG 지식**으로 적재돼 순환한다. 인테이크 챗봇은 AutoPrep 오케스트레이터의 입구다.
+- 자세히: [영역 F 개요](/area-f/)
+
+## 4. 두 종류의 경계 — 영역 간 / 공통영역
+
+수직 분담이 충돌 없이 굴러가는 이유는 **두 종류의 경계**가 있기 때문이다.
 
 ```text
-1. fit_analysis 소스 조회: 공고 요구/우대 스킬 + 내 프로필 스킬/자격증 (mapper.findGenerationSource)
-2. FitAnalysisAiCommand 조립 → fitAnalysisAiService.generate() 호출 (LLM이 설명/근거 생성)
-3. 신뢰도는 LLM이 아니라 입력 상태로 결정적 계산: FitAnalysisConfidence.evaluate(command)
-4. 점수 분해도 서버가 규칙으로 재구성: scoreBreakdown() = 필수45/우대25/프로젝트15/경력10/프로필5
-5. fit_analysis row + history(점수 델타·획득/해소/신규 격차) + condition_match + learning_task 저장
-6. ai_usage_log 기록(크레딧 차감), 성공 시 알림(Notification) 발송
+                    ┌──────────────────────────────────────────┐
+                    │          공통영역 (Owner = 팀장)            │
+                    │  common/  ai/common  ai/prompt 공통엔진     │
+                    │  routes.ts  schema.sql  application.yaml    │
+                    │  → 변경 = 팀장 승인 / 팀 합의 필수            │
+                    └──────────────────────────────────────────┘
+                          ▲ 합의 게이트 (수정 전 협의)
+                          │
+   ┌─────┐  읽기전용 참조  ┌─────┐  읽기전용 참조  ┌─────┐
+   │  A  │ ─────────────▶ │  C  │ ◀───────────── │  B  │   ← 영역 간 경계
+   └─────┘  user_profile  └─────┘  job_analysis  └─────┘     (남의 원본은 read-only)
 ```
 
-핵심은 **4번**이다. `weightedConditionScore`가 조건 매칭(MET=1.0, PARTIAL=0.5, UNMET=0)을 가중 합산해 점수 구간을 서버가 확정한다. LLM이 "80점"이라고 말해도 그 숫자를 그대로 믿지 않고, 조건 매트릭스에서 점수를 역산·정합화한다.
+### 4-1. 영역 간 경계 — 읽기전용 참조
 
-### 5-2. 뉴로-심볼릭 분담
+원칙은 단순하다. **각 영역은 자기 결과 테이블만 쓰고, 타 영역 원본은 읽기전용으로 참조한다.** 이건 단순 권한이 아니라 **정합성**이다 — C 적합도가 분석 시점의 A 프로필·B 공고를 `source_snapshot`으로 동결하면, A가 나중에 프로필을 바꿔도 과거 결과가 재현된다.
 
-| 역할 | 담당 | 이유 |
+| 소유 영역 | 쓰기 소유 | 다른 영역에 제공(읽기전용) |
 | --- | --- | --- |
-| 매칭/부족 역량, 전략 문장, 학습 과제 설명 | LLM | 자연어 생성이 강점 |
-| 적합도 점수 분해, 신뢰도, 격차 델타 | 서버 규칙 | 재현성·검증 가능성 |
-| 점수 합산 검증, 잔여 점수 재분배 | 서버 규칙 | LLM 환각 점수 차단 |
+| A | `user_profile` | → B·C·D·E·F |
+| B | `job_analysis`, `company_analysis` | → C·D·E |
+| C | `fit_analysis` | → D |
+| D | `interview_answer` 등 | → C(장기경향)·E(첨삭 입력) |
+| E | `correction_request` | (원장 분리, 원문 비수정) |
+| F | `community_*` | F#31 추출질문 → D |
 
-### 5-3. 3단 폴백 (`FallbackFitAnalysisAiService`)
+### 4-2. 공통영역 경계 — 팀장 단일 소유
+
+아무나 바꾸면 전 영역이 깨지는 코드는 **팀장이 단일 소유**한다. 변경하려면 사유·영향 범위를 공유하고 승인 또는 합의를 거친다.
+
+- **게이트 대상:** 라우팅(`routes.ts`), 공통 컴포넌트, 공통 API, DB 구조(`schema.sql`), 인증/권한(`SecurityConfig`), AI 프롬프트 공통 엔진(`ai/prompt`), 공통 로그 구조.
+- **게이트 대상이 아님:** 각 영역의 **기능별 프롬프트·기능별 로그 하위 폴더**는 담당이 자유롭게 만진다.
+- **예외:** 단순 오타·주석·명백한 문서 오류는 바로 고친다.
+
+:::warning 정직한 구분 — "공통 AI 엔진"은 목표
+"전 영역 공통 AI 클라이언트"는 **목표**이고, 현재 `ai/common`은 스켈레톤(`package-info` 위주)이다. 실제 AI 호출은 각 영역 도메인 서비스에 흩어져 있다(예: C `FallbackFitAnalysisAiService`, D `FallbackInterviewLlmGateway`). 지금 공통화된 것은 사용량 로그 **스키마**(`ai_usage_log`)와 `ApiResponse<T>` 규약 정도다.
+:::
+
+## 5. 영역을 가로지르는 것 — 오케스트레이터와 공통 폴백
+
+6영역을 가로지르는 거대 기능 **AutoPrep 오케스트레이터**조차 경계를 깨지 않는다. **새 AI를 만들지 않고 A~F의 기존 도메인 서비스를 래핑**하기 때문이다.
 
 ```text
-provider=oss + base-url 있음? → 자체모델(OSS) 시도
-  실패 → OpenAI (OpenAiFitAnalysisAiService)
-    키 없음/실패 → 내부 Mock
+F 인테이크 챗봇(입구) → 플래너 → 의존 그래프
+   독립 파트 (동시 출발):  PROFILE(A) · JOB(B) · WRITE(E) · COMMUNITY(F)
+   의존 파트 (JOB 끝난 뒤): FIT(C) · INTERVIEW(D)   ← DEPS = {FIT:[JOB], INTERVIEW:[JOB]}
+   진행은 SSE 스트리밍 (plan / part-start / substep / part-done)
 ```
 
-자체모델이 죽거나 응답이 깨져도 화면은 안 깨진다. 이 패턴은 영역 D의 `FallbackInterviewLlmGateway`를 C 도메인으로 가져온 것(D 파일은 안 건드림 = 영역 경계 준수).
+- 비즈니스 로직 소유권은 그대로 각 영역에 남는다. 오케스트레이터는 의존그래프·병렬 실행·SSE만 책임진다.
+- 모든 AI 호출은 공통 폴백 사다리(**자체 OSS → Haiku → OpenAI → Mock**)를 따르고, `ai_usage_log` 기록 + 크레딧(E) 차감으로 이어진다. 단, 실제 동작하는 폴백 범위는 영역마다 다르다.
 
-### 5-4. AutoPrep에서 FIT의 위치 (`AutoPrepOrchestrator`)
+자세히: [AI 오케스트레이터 전체](/flow/ai-orchestrator) · [AI 기능 #1-34 맵](/flow/ai-function-map) · [AI 공급자·폴백 전략](/flow/ai-providers-fallback)
 
-오케스트레이터는 `PrepPlan`의 단계를 **의존 그래프대로 병렬** 실행한다. 의존은 단순하다:
+## 6. 면접 답변 3단계 — "역할 분담을 설명해 보세요"
 
-```text
-DEPS = { FIT: [JOB], INTERVIEW: [JOB] }
-```
+특정 영역에 고정하지 말고, 6영역 구조를 먼저 말한 뒤 자기 담당으로 좁히는 흐름이 깔끔하다.
 
-FIT(C)와 INTERVIEW(D)는 공고 분석 JOB(B)이 DB에 커밋된 뒤 시작한다(`CompletableFuture.allOf(depFutures).thenRunAsync`). 진행 상황은 SSE로 실시간 전송된다. `FitPrepHandler`는 "근거 검색 → 채점 → 검증" 서브스텝을 보고하고 `fitAnalysisService.generate()`를 호출한다. 미구현/비활성 파트는 SKIPPED, 실패해도 FAILED로 기록하고 전체는 완주한다.
-
-## 6. 면접 답변 3단계
-
-- **초간단(1문장):** "저는 지원 건마다 적합도 점수·부족 역량·학습/자격증 추천과 장기 취업 경향을 만드는 AI 분석 파트를 담당했습니다."
-- **기본:** "핵심 설계 원칙은 점수와 합격 판정은 서버 규칙엔진이 확정하고 LLM은 설명만 생성하는 뉴로-심볼릭 구조입니다. LLM이 점수를 흔들거나 없는 자격증을 환각하는 문제를 차단하려고, `FitAnalysisServiceImpl`에서 조건 매칭(MET/PARTIAL/UNMET)을 가중 합산해 필수45·우대25 식으로 점수를 서버가 재구성합니다. AI 호출은 자체모델→OpenAI→Mock 3단 폴백으로 가용성을 보장했고, AutoPrep 오케스트레이터에서는 공고 분석(JOB) 완료 후 FIT이 시작하도록 의존 그래프를 걸었습니다."
-- **꼬리질문 대응:** "추가로 자체 LLM(Qwen2.5 3B + LoRA)을 학습·평가하는 하니스를 따로 운영했는데, 골든 60케이스로 환각·근거 위반(grounding)·점수 정합성을 측정했습니다. 7B로 키워도 점수가 안 올라서 모델 크기가 아니라 근거(grounding)가 병목임을 데이터로 확인하고 RAG 방향으로 PoC를 했습니다. 이건 프로덕션 기본 경로(OpenAI)와 분리한 연구 트랙입니다."
+- **초간단(1문장):** "6명이 수직 분담으로 A~F 여섯 영역을 나눠, 한 사람이 한 영역의 화면·API·관리자·AI·DB를 통째로 소유했습니다."
+- **기본(30초):** "계층이 아니라 기능으로 나눴습니다. A는 회원·프로필, B는 공고 분석, C는 적합도·전략, D는 가상 면접, E는 첨삭·과금, F는 커뮤니티·챗봇을 맡습니다. 핵심 단위는 공고가 아니라 지원 건이고, 이 여섯 영역이 한 지원 건을 함께 채웁니다. 데이터는 소유자만 쓰고 나머지는 읽기전용으로 참조하며, 인증·DB 스키마·라우팅 같은 공통영역은 팀장이 단일 소유합니다."
+- **꼬리질문 대응:** "저는 그중 [담당 영역]을 맡아 [핵심 산출물]을 소유했습니다. 다른 영역의 원본은 읽기전용으로만 받고, 제 결과는 [다음 영역]이 소비합니다. 영역을 가로지르는 AutoPrep 오케스트레이터도 각 영역 서비스를 래핑만 해서, 거대 기능인데도 공통영역 침범이 최소였습니다."
 
 ## 7. 자주 나오는 꼬리질문 + 모범답안
 
-:::details Q. LLM이 점수까지 내면 안 되나요? 왜 서버가 다시 계산하나요?
-LLM 점수는 **재현성이 없습니다.** 같은 입력에 80점, 75점이 왔다 갔다 하면 사용자가 신뢰할 수 없고, 재분석 시 점수가 출렁입니다. 그래서 조건 매트릭스(필수/우대 × MET/PARTIAL/UNMET)를 서버가 가중 합산해 점수를 결정적으로 산정합니다(`weightedConditionScore`). 신뢰도(`FitAnalysisConfidence`)도 LLM 판단이 아니라 입력 완성도로 계산해서 Mock이든 실제 AI든 동일하게 나옵니다.
+:::details Q. 왜 수평(계층)이 아니라 수직(기능)으로 나눴나요?
+수평 분담은 기능 하나에 6명이 동시에 손대야 해서 책임 경계가 흐려집니다. 수직 분담은 **한 기능 = 한 사람 = 한 폴더**라 디렉터리만 봐도 소유자를 알 수 있고, 충돌이 폴더 경계에서 멈춥니다. 대신 영역마다 폴백·로깅 같은 코드가 중복되는 단점이 있어, 공통 규약(`ApiResponse`, `ai_usage_log` 스키마)으로 인터페이스만 맞추고 진짜 공통화는 패턴이 충분히 드러난 뒤 합의로 끌어올립니다.
 :::
 
-:::details Q. AI가 죽으면 화면이 깨지나요?
-안 깨집니다. `FallbackFitAnalysisAiService`가 `@Primary` 진입점이고 자체모델→OpenAI→Mock 순으로 폴백합니다. OpenAI 키가 없으면 `OpenAiFitAnalysisAiService` 내부에서 Mock으로 떨어지고, 결과 status를 FAILED/SUCCESS로 구분해 저장합니다. AutoPrep에서도 한 파트가 실패해도 FAILED로 기록만 하고 나머지는 끝까지 실행합니다.
+:::details Q. 다른 영역 데이터가 필요하면 직접 고치면 되지 않나요?
+읽을 수는 있지만 **쓰기는 금지**입니다. 단순 권한이 아니라 정합성 때문입니다. 예를 들어 C 적합도는 분석 시점의 A 프로필·B 공고를 비교한 결과인데, 원본이 나중에 바뀌면 과거 결과의 근거가 사라집니다. 그래서 입력을 `source_snapshot`으로 동결하고 fingerprint로 캐시 키를 만들어, 같은 입력이면 같은 결과를 재현하고 입력이 바뀌면 재분석을 트리거합니다.
 :::
 
-:::details Q. AutoPrep에서 FIT은 왜 바로 시작 못 하나요?
-적합도는 공고 요구조건이 있어야 매칭할 수 있는데, 그 요구조건은 영역 B의 공고 분석(JOB)이 만들어 DB에 넣습니다. 그래서 `DEPS`에 `FIT: [JOB]`을 걸어 JOB future가 끝난 뒤 `thenRunAsync`로 FIT을 시작합니다. 반대로 프로필(A)·자소서(E) 같은 독립 파트는 동시에 출발합니다.
+:::details Q. 공통영역(schema.sql, 인증, 라우팅)은 누가 바꾸나요?
+팀장이 단일 소유합니다. 새 테이블이 필요하면 담당이 사유와 영향 범위를 공유하고 합의 후 반영합니다. 덕분에 마이그레이션이 한 곳에서 직렬화되고 충돌이 줄어듭니다. 반대로 기능별 프롬프트·기능별 로그 하위 폴더는 각자 소유라 게이트 없이 자유롭게 만집니다 — 충돌이 잦은 것만 게이트에 묶은 비대칭 설계입니다.
 :::
 
-:::details Q. 자체 LLM은 실제 서비스에 쓰나요?
-현재 프로덕션 기본 경로는 OpenAI입니다. 자체 LLM은 `ml/career-strategy-llm/`의 학습·평가 하니스와 골든셋으로 진행한 연구 트랙이고, 폴백 디스패처에 `OssFitAnalysisAiService` 자리를 미리 만들어 뒀습니다. 7B vs 3B LoRA 비교에서 7B가 이점이 없어(success 0.892 vs 0.867) 3B LoRA 유지 + RAG 우선으로 방향을 정했고, 점수/판정은 절대 LLM에 넘기지 않는 안전 불변식을 끝까지 지켰습니다.
-:::
-
-:::details Q. 한 건 분석과 장기 경향 분석의 차이는?
-적합도(`fit_analysis`)는 지원 건 1개 안에서 공고 vs 프로필을 봅니다. 장기 취업경향(`career_analysis_run`, `CareerTrendAiResult`)은 여러 지원 건을 가로질러 "반복적으로 부족한 역량, 지원 성향, 다음에 노릴 방향"을 요약합니다. 단건이 진단이라면 경향은 처방에 가깝습니다.
+:::details Q. 6영역을 가로지르는 오케스트레이터는 경계를 안 깨나요?
+안 깹니다. AutoPrep은 새 AI를 만들지 않고 A~F의 기존 도메인 서비스를 호출(래핑)만 합니다. PROFILE→A, JOB→B, FIT→C, INTERVIEW→D, WRITE→E, COMMUNITY→F 핸들러가 각 영역 서비스를 부를 뿐이라, 비즈니스 로직 소유권은 그대로 각 영역에 남습니다. 오케스트레이터는 의존그래프(FIT·INTERVIEW는 JOB 뒤)와 병렬 실행·SSE만 책임집니다.
 :::
 
 ## 8. 직접 말해보기
 
-1. 면접관이 "당신이 만든 기능 중 가장 기술적으로 어려웠던 결정 하나"라고 물으면, **뉴로-심볼릭 점수 분담**을 30초 안에 설명해 보라. "왜 LLM에 점수를 안 맡겼나"가 핵심.
-2. "AI가 불안정한데 어떻게 신뢰성을 확보했나?"에 대해, **3단 폴백 + 결정적 신뢰도 계산 + 서버 점수 검증** 세 가지를 한 호흡에 말해 보라.
+1. 자기 담당 영역 한 줄을 정하고, **"내가 소유하는 테이블 / 읽기전용으로 받는 영역 / 내 결과를 넘기는 영역"** 세 가지를 30초 안에 말해 보라.
+2. 수직 분담과 수평 분담의 차이를 **충돌 관점**에서 설명해 보라.
+3. "다른 영역 데이터를 읽기전용으로만 쓴다"가 왜 권한이 아니라 **정합성** 문제인지, C의 스냅샷 사례로 말해 보라.
+4. 공통영역에 게이트를 두는 이유와, 게이트 대상이 **아닌** 것(기능별 프롬프트·로그)을 구분해 설명해 보라.
 
 ## 퀴즈
 
-<QuizBox question="영역 C의 적합도 분석에서 최종 점수는 누가 확정하는가?" :choices="['LLM이 생성한 점수를 그대로 사용한다','서버 규칙엔진이 조건 매칭을 가중 합산해 확정한다','사용자가 직접 입력한다','OpenAI와 자체모델의 평균을 낸다']" :answer="1" explanation="FitAnalysisServiceImpl의 weightedConditionScore가 MET/PARTIAL/UNMET을 가중 합산해 필수45·우대25 등으로 점수를 결정적으로 산정한다. LLM은 설명·근거만 생성하는 뉴로-심볼릭 구조다." />
+<QuizBox question="CareerTuner 6인 팀이 택한 분담 방식으로 가장 정확한 것은?" :choices="['계층 수평 분담 — 컨트롤러·서비스·매퍼를 사람별로 나눴다','수직 분담 — 한 사람이 한 영역의 화면·API·관리자·AI·DB를 통째로 소유한다','기능 무소유 — 모두가 모든 코드를 자유롭게 수정한다','매 스프린트마다 담당을 랜덤으로 섞는다']" :answer="1" explanation="수직 분담은 한 기능=한 사람=한 폴더라 책임 경계가 코드 경로와 일치한다. 디렉터리만 보면 소유자를 알 수 있고 충돌이 폴더 경계에서 멈춘다. A~F 여섯 영역이 한 지원 건을 함께 채운다." />
 
-<QuizBox question="AutoPrep 오케스트레이터에서 FIT(C) 단계가 JOB(B) 완료 후에 실행되는 이유를 설명하라." explanation="적합도는 공고 요구조건과 프로필을 매칭해야 하는데, 그 요구조건은 영역 B의 공고 분석(JOB)이 산출해 DB에 커밋한다. 따라서 AutoPrepOrchestrator의 DEPS에 FIT: [JOB] 의존을 걸고, JOB의 CompletableFuture가 끝난 뒤 thenRunAsync로 FIT을 시작한다. 의존이 없는 프로필·자소서 등은 동시에 병렬 출발한다." />
+<QuizBox question="영역과 담당 AI 기능 번호의 짝으로 옳지 않은 것은?" :choices="['A: 회원·프로필·인증 #1~5','B: 지원 건·공고·기업 분석 #6~11','C: 적합도·전략·대시보드 #12~18','F: 커뮤니티·고객센터·챗봇 #19~23']" :answer="3" explanation="F(커뮤니티·고객센터·챗봇)의 AI 기능 번호는 #29~34다. #19~23은 영역 D(가상 면접)의 담당이다. AI #1~34는 A~F 여섯 영역에 순서대로 배분돼 있다." />
 
-<QuizBox question="FallbackFitAnalysisAiService의 폴백 순서로 옳은 것은?" :choices="['OpenAI → 자체모델 → Mock','Mock → OpenAI → 자체모델','자체모델(OSS) → OpenAI → Mock','OpenAI → Mock 만 사용']" :answer="2" explanation="provider=oss이고 base-url이 있으면 자체모델을 먼저 시도하고, 실패하면 OpenAI, 키가 없거나 실패하면 내부 Mock으로 떨어진다. 기본값 provider=openai에서는 자체모델을 건너뛴다." />
+<QuizBox question="다음 중 변경 시 팀장 승인 또는 팀 합의가 필요한 '공통영역'이 아닌 것은?" :choices="['schema.sql과 application.yaml','frontend의 routes.ts','인증/권한(SecurityConfig)과 ai/prompt 공통 엔진','특정 영역의 기능별 프롬프트·기능별 로그 하위 폴더']" :answer="3" explanation="기능별 프롬프트와 기능별 로그 하위 폴더는 각 담당이 소유하므로 게이트 대상이 아니다. schema.sql·routes.ts·인증·공통 프롬프트 엔진은 팀장 소유 공통영역이라 합의가 필요하다." />
+
+<QuizBox question="수직 분담에서 한 영역이 다른 영역의 데이터를 사용할 때의 규약을 설명하라." explanation="각 영역은 자기 결과 테이블만 쓰기로 소유하고, 타 영역의 원본은 읽기전용으로만 참조한다(비수정). 이는 단순 권한이 아니라 정합성 보증 장치다. 예를 들어 C 적합도는 분석 시점의 A 프로필·B 공고분석을 source_snapshot으로 동결한 뒤 fingerprint로 캐싱해, 원본이 나중에 바뀌어도 과거 결과를 재현하고 입력이 바뀌면 재분석을 트리거한다." />

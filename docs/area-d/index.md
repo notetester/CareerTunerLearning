@@ -1,171 +1,188 @@
-# 영역 D 심화 개요 — 가상 면접
+# 영역 D 개요 — 가상 면접 (AI #19-23)
 
-> 영역 D는 **지원 건(Application Case) 하나에 대한 모의 면접의 전체 흐름**을 책임진다. 세션 생성 → 예상 질문 → 답변 평가 → 리포트 → 다음 연습까지가 하나의 끊김 없는 사이클이다. 이 영역의 설계 정체성은 두 가지로 요약된다: **2-축 LLM 추상화**(생성 vs 채점을 의도적으로 분리), 그리고 **자체 LLM(OSS)으로의 점진 교체**가 가장 활발히 진행되는 실험장이라는 점.
+> 영역 D는 **하나의 지원 건(Application Case)에 대한 모의 면접 전체**를 책임진다. 예상 질문을 만들고, 답변을 받아 채점하고, 꼬리질문으로 파고들고, 세션을 리포트로 닫는다. 설계 정체성은 두 가지로 압축된다 — **"모범답안을 만점 기준으로 삼는 비교 채점"** 과 **"한 모델에 운명을 걸지 않는 폴백 게이트웨이(자체 모델 → Claude Haiku → OpenAI)"**.
+
+[← 영역별 심화 전체 개요](/areas/) · 인접 영역: [영역 C 적합도·전략](/area-c/) · [영역 E 첨삭·결제](/area-e/) · [영역 F 커뮤니티·챗봇](/area-f/)
 
 ---
 
 ## 1. 영역 D의 정체성 — 한 문장으로
 
-영역 D는 **공고가 아니라 "지원 건"을 단위로** 모의 면접 한 라운드를 끝까지 돌리는 영역이다. 모든 세션은 `interview_session.application_case_id`로 지원 건에 종속되며, FK는 `ON DELETE CASCADE`라 지원 건이 사라지면 면접 기록도 함께 정리된다.
+영역 D는 지원 건 하나에 종속된 **면접 세션**을 만들고, 그 아래로 질문을 달고, 질문 아래로 답변을 달아 **채점·리포트**까지 끊김 없이 이어가는 영역이다. 핵심 단위는 공고가 아니라 지원 건이므로, 면접 기록도 `interview_session.application_case_id`로 지원 건에 묶여 함께 관리된다.
+
+다른 영역과 결정적으로 다른 점: **면접 평가는 "한 번 점수 물어보기"가 아니다.** 답변을 제출하면 모범답안을 만점(100점) 기준으로 놓고, 채점 → 적대적 검증 → 필요 시 재채점을 도는 멀티에이전트 루프가 점수와 피드백을 만든다. 또한 영역 D는 프로젝트 전체에서 **자체 LLM(Qwen 계열 LoRA) 연구가 가장 활발한** 영역인데, 답변마다 학습 데이터가 1건씩 쌓이는 채점 task의 특성 때문이다.
 
 :::tip 이 페이지가 답하는 면접 질문
-"영역 D가 정확히 뭘 하나요?" / "면접 전체 흐름을 한 번 설명해 주세요." / "왜 LLM 경로를 둘로 나눴나요?" / "자체 모델은 실제로 돌아가나요?"
-이 개요만 막힘없이 말할 수 있으면, 세부 페이지는 디테일을 채우는 역할이다.
+"영역 D가 정확히 뭘 하나요?" / "면접 데이터를 어떻게 모델링했나요?" / "답변 채점을 그냥 GPT에 점수 물어본 건가요?" / "LLM이 죽으면 면접이 멈추나요?" / "자체 모델은 정말 돌고 있나요, 계획인가요?"
+이 개요만 막힘없이 말할 수 있으면, 하위 페이지는 디테일을 채우는 역할이다.
 :::
 
-### 면접 한 사이클 — 5단계 흐름
+---
 
-| 단계 | 무엇을 | 핵심 클래스 | AI 기능 |
+## 2. 6개 영역 속에서 D의 위치
+
+CareerTuner는 6명이 한 지원 건을 수직 분담으로 함께 채운다. 아래 표에서 D의 위치와 데이터 흐름을 본다.
+
+| 영역 | 책임 | AI 번호 | D와의 관계 |
 | --- | --- | --- | --- |
-| ① 세션 생성 | 지원 건 + 모드 선택 → 세션 row | `InterviewServiceImpl.createSession` | — |
-| ② 예상 질문 | 공고 기반 본질문 생성(+ 모범답안 백그라운드) | `generateQuestions` / `generateFollowUps` | #19, #20 |
-| ③ 면접 진행 | 텍스트 진행 / 음성(Realtime) / 아바타(HeyGen) | `getProgress` / `InterviewRealtimeService` / `InterviewAvatarService` | #21 |
-| ④ 답변 평가 | 멀티에이전트 채점 루프 | `InterviewAgentOrchestrator.evaluateAnswer` | #22 |
-| ⑤ 리포트 | 총점·카테고리·피드백, 세션 종료 | `getReport` | #23 |
+| A | 회원·프로필·인증 | #1~5 | A `user_profile` 스냅샷 → D 질문 생성 입력(읽기전용) |
+| B | 지원건·공고·기업분석 | #6~11 | B `job_analysis`·면접 포인트(#11) → D 질문 생성 입력(읽기전용) |
+| C | 적합도·전략·대시보드 | #12~18 | C 적합도(#12) → D 질문 입력 / D 평가(#22) → C 장기경향(#16) 순환 |
+| **D** | **가상 면접·리포트** | **#19~23** | **A·B·C 결과가 여기서 합류, 결과는 C·E로** |
+| E | 첨삭·결제·크레딧 | #24~28 | D 답변·평가(#22) → E 면접답변 첨삭(#24) 진입 |
+| F | 커뮤니티·고객센터·챗봇 | #29~34 | F 실제 면접질문(#31) → D 질문 풀로 순환 환류 |
 
-핵심: **별도 "면접 종료" API가 없다.** 리포트 생성(`getReport`)이 `interview_session.ended_at`을 세팅하면서 세션을 닫는다. "리포트 = 세션 종료"라는 단순화가 의도적 설계다.
-
----
-
-## 2. 담당 AI 기능 — #19 ~ #23
-
-영역 D가 소유한 AI 기능은 5개다. 모든 LLM 호출은 성공 시 `ai_usage_log`(공통)에 `feature_type`/`status`/`model`/`token_usage`/`credit_used`로 기록되고, 점수는 항상 `clampScore`로 0~100 범위에 갇힌다.
-
-| # | 기능 | 엔트리(POST/GET) | 모델 티어 | 한 줄 |
-| --- | --- | --- | --- | --- |
-| 19 | 예상 질문 생성 | `POST .../sessions/{id}/generate-questions` | 생성 | 공고 기반 본질문 + 모범답안 백그라운드 일괄 생성 |
-| 20 | 꼬리 질문 생성 | `POST .../questions/{id}/follow-ups` | 생성 | **압박 모드 전용** 반박 1개 |
-| 21 | 면접관 진행 | `GET .../report`(진행) / `POST .../realtime`·`/avatar-token` | 혼합 | 텍스트 진행기 + 음성(Realtime) + 아바타(HeyGen) |
-| 22 | 답변 평가 | `POST .../questions/{id}/answers` | 채점 | 멀티에이전트 자율 루프(채점·Critic·재평가) |
-| 23 | 면접 리포트 | `GET .../sessions/{id}/report` | 생성 | 총점·카테고리·종합 피드백, 캐시 우선 |
-
-### 두 가지 깊은 설계 포인트(개요에서 꼭 알 것)
-
-1. **모범답안 = 만점 기준 = 표시 = 블라인드 복습 채점, 하나로 고정.** 질문 생성 직후 트랜잭션 커밋 이후(`afterCommit`) 백그라운드 스레드가 6개 모범답안을 일괄 생성한다. 이 모범답안이 채점 시 "만점(100점) 기준 답안지"로 재사용된다. 동시 생성 경쟁은 `first-writer-wins`(XML 조건부 UPDATE: `model_answer IS NULL OR ''`일 때만)로 단 하나만 살아남게 한다.
-
-2. **꼬리질문은 압박 모드 전용.** 다른 모드에서 `generateFollowUps`를 호출하면 `INVALID_INPUT` 예외다. 이유는 코드 주석에 명시돼 있다 — "다른 모드는 본질문 6개로 끝낸다(자체 LLM PROBE 태스크를 압박에 집중)." 문서의 일반적 설명보다 의도적으로 좁다.
-
----
-
-## 3. 다른 영역의 산출물을 어떻게 받나 (B / C / A 입력)
-
-D는 다른 영역의 산출물을 **읽기전용으로만** 참조하고 원본을 절대 수정하지 않는다. 진입점은 `ApplicationCaseAccessService`다.
+### 데이터는 어디서 와서 어디로 가나
 
 ```text
-requireOwned(caseId, userId)   // 소유 검증 (남의 지원 건 차단)
-sourceText(caseId)             // 공고 원문 텍스트 (읽기전용)
+[읽기전용 참조 입력]
+ A user_profile 스냅샷 ─┐
+ B job_analysis/#11    ─┼──▶ [D #19 예상질문] ─▶ 세션 ─▶ #20 꼬리질문
+ C fit_analysis(#12)   ─┘                        ├─▶ #21 면접관 진행
+                                                 └─▶ #22 답변평가 ─┬─▶ #23 리포트
+                                                                   ├─▶ E #24 첨삭
+                                                                   └─▶ C #16 장기경향(순환)
 ```
 
-| 영역 | 산출물(이론) | 실제로 질문 프롬프트에 들어가나? |
+핵심 두 가지. **(1)** D는 A·B·C 세 영역의 산출물이 합류하는 지점이다 — 질문은 프로필 스냅샷·공고 분석·적합도를 한꺼번에 입력으로 받는다. **(2)** D의 답변평가(#22)는 **출력이 세 갈래로 갈라지는 분기점**이다(리포트 #23 / E 첨삭 #24 / C 장기경향 #16). 데이터 소유권 원칙대로, D는 자기 결과(`interview_*`)를 소유하고 타 영역 원본은 **읽기전용으로 참조하며 절대 수정하지 않는다.**
+
+전체 그림은 [전체 흐름](/flow/)과 [AI #1-34 맵](/flow/ai-function-map)에서, 소유권 규칙은 [데이터 소유권](/flow/data-ownership)에서 본다.
+
+---
+
+## 3. 담당 AI 기능 — #19 ~ #23
+
+영역 D가 소유한 AI 기능은 5개다. 모두 단일 면접 세션 위에서 동작하며, LLM 호출은 전부 하나의 폴백 게이트웨이를 거친다.
+
+| # | 기능 | 한 줄 설명 | 주요 산출물 |
+| --- | --- | --- | --- |
+| 19 | 예상 질문 생성 | 회사·직무·공고 + 모드로 6개 안팎 질문 생성, 커밋 후 모범답안까지 백그라운드 일괄 생성 | `interview_question`, `model_answer` |
+| 20 | 꼬리 질문 생성 | 제출된 답변의 약점·근거 부족을 파고드는 동적 후속 질문(압박 면접 특화) | `interview_question`(self-FK) |
+| 21 | 면접관 대화 진행 | "다음 질문 / 재질문 / 종료"를 서버 상태에서 매번 재계산(텍스트·실시간 음성 2갈래) | 진행 상태(무상태 재계산) |
+| 22 | 답변 평가 | 모범답안을 만점 기준으로, 멀티에이전트 루프(채점→검증→재채점)로 0~100점 | `interview_answer` 점수, `interview_agent_step` trace |
+| 23 | 면접 리포트 | 세션 전체 Q&A를 묶어 총점·항목별 점수·종합 피드백, 세션을 닫음 | `interview_session.report`, `total_score` |
+
+세부: [예상 질문 생성](/area-d/question-generation) · [꼬리 질문](/area-d/followup-questions) · [면접관 진행](/area-d/interviewer-flow) · [답변 평가](/area-d/answer-evaluation) · [면접 리포트](/area-d/interview-report)
+
+---
+
+## 4. 설계 정체성 두 가지
+
+영역 D가 "데모용 장난감"이 아닌 이유는 다음 두 축으로 요약된다.
+
+### 4.1 모범답안 기준 비교 채점 — 점수가 흔들리지 않게
+
+LLM에 "이 답변 채점해"만 던지면 모델이 매번 머릿속 기준을 새로 만들어 같은 답변에도 점수가 출렁인다. 그래서 D는 #19에서 질문을 만들 때 **모범답안(model_answer)을 함께 생성**해 질문에 1개만 고정하고, 이를 채점의 만점 기준으로 재사용한다. 모범답안은 곧 **화면 표시 = 만점 기준 = 블라인드 복습 채점 기준**을 단 하나로 일치시키는 장치라, 응답 DTO에서는 의도적으로 가린다(블라인드).
+
+채점은 단일 호출이 아니라 `InterviewAgentOrchestrator`의 **멀티에이전트 자율 루프**(채점 → 적대적 검증 → 필요 시 재채점)로 돌고, 모든 판단 단계는 `interview_agent_step`에 trace로 남아 사후 감사가 가능하다.
+
+### 4.2 폴백 게이트웨이 — 한 모델에 운명을 걸지 않는다
+
+면접 도메인의 모든 구조화 LLM 호출은 단 하나의 `@Primary` 디스패처 `FallbackInterviewLlmGateway`를 거친다. 호출부(`InterviewOpenAiClient`)는 추상 타입 `InterviewLlmGateway`만 주입받아 `gateway.complete(...)` 한 줄로 호출하므로, **provider를 바꿔도 호출부 코드는 한 줄도 변하지 않는다**(Strategy + Chain of Responsibility).
+
+| 단계 | provider | 역할 |
 | --- | --- | --- |
-| **B** 공고/기업 분석 | 공고 원문, 회사명·직무명 | ✅ 들어감 (`sourceText`) |
-| **C** 적합도 분석 | 적합도 점수·부족역량 | ❌ 아직 미연결 |
-| **A** 프로필 스냅샷 | 보유 역량·경험 | ❌ 아직 미연결 |
+| 자체 모델 | OSS(Ollama/vLLM, Qwen LoRA) | 학습한 task부터 점진 교체 — 현재 생성 화이트리스트 비어 있음 |
+| 1차 폴백 | Claude Haiku(`claude-haiku-4-5`) | 한국어 구조화 출력 양호, 자체 모델로 가는 "디딤돌"(선생 + 과도기 런타임) |
+| 2차 폴백 | OpenAI(`gpt-5`, Responses API) | 최종 폴백, `json_schema strict` |
 
-:::warning ★구현 vs 계획 갭 (정직하게)
-설계 문서(`TEAM_WORK_DISTRIBUTION.md`)는 질문 생성 입력으로 "C의 적합도 + A의 프로필"을 약속한다. 그러나 실제 코드(`InterviewOpenAiClient.generateQuestions`)는 **회사명·직무명·면접 모드·공고 원문(B)만** 프롬프트에 주입한다. C/A 직접 주입은 **미연결 = 부분 구현**이다. 면접에서는 "현재는 B만 들어가고, C·A 연결은 로드맵"이라고 정확히 말하는 게 맞다.
-:::
+장기 목표는 **자체 파인튜닝 모델로의 점진 교체**다. 자체 모델이 한 task씩 안정화되면 화이트리스트(`OSS_GENERATION_TASKS`)에 추가해 Claude를 그 task에서 은퇴시킨다.
 
-반대 방향 경계도 있다: **C는 면접 점수를 장기 경향 분석에 "참조만"** 한다. 면접이 적합도 점수를 건드리지 않듯, 적합도도 면접 점수를 다시 쓰지 않는다. 영역 간 데이터는 단방향 읽기다.
+자세히: [면접 폴백 게이트웨이](/area-d/fallback-gateway) · [자체 LLM 파인튜닝](/area-d/self-llm-finetune)
 
 ---
 
-## 4. 영역의 설계 정체성 — 2-축 추상화
+## 5. 구현 상태 — 정직하게
 
-D를 이해하는 가장 빠른 길은 "LLM을 어떻게 두 갈래로 나눴나"를 이해하는 것이다.
+면접에서 과장은 가장 위험하다. D의 상태는 다음과 같이 정직하게 구분한다.
 
-```text
-                     ┌─ 자체모델(OSS) ─ 학습된 생성 task만
-[전송축] InterviewLlmGateway (생성) ─┼─ Claude(Haiku) ─ 1차 폴백
-                     └─ OpenAI ─ 최종 폴백
-
-[평가축] InterviewAnswerEvaluator (채점) ─┬─ OpenAI (기본)
-                       └─ OssAnswerEvaluator (자체모델)
-```
-
-- **전송축** `InterviewLlmGateway`: 질문·꼬리·모범답안·리포트 **생성**. `FallbackInterviewLlmGateway`가 자체 → Claude → OpenAI 순으로 폴백 체인(Chain of Responsibility)을 돈다.
-- **평가축** `InterviewAnswerEvaluator`: 답변 **채점·Critic**. `InterviewEvaluatorProvider`가 OpenAI vs 자체모델을 런타임 토글로 분기한다.
-
-두 축은 **의도적으로 분리**된다. `FallbackInterviewLlmGateway` 주석에 직접 적혀 있다: "채점(EVAL)·Critic은 이 게이트웨이가 아니라 `InterviewEvaluatorProvider`가 `OssAnswerEvaluator`로 분기하므로 화이트리스트에 넣지 않는다(이중 경로 방지)." 이유는 **생성과 채점의 폴백 정책·모델 티어·과금·자체모델 교체 진척이 모두 다르기** 때문이다. 한 게이트웨이에 섞으면 채점 폴백이 의도치 않게 달라진다.
-
-### 자체 LLM은 실제로 돌아가나? (정직 구분)
-
-```java
-private static final Set<String> OSS_GENERATION_TASKS = Set.of(); // 빈 집합
-```
-
-- 생성 task의 자체모델 화이트리스트는 **빈 집합**이다. 즉 **질문/꼬리/모범답안/리포트 생성은 현재 사실상 Claude → OpenAI 폴백으로만 동작**한다.
-- 이유는 코드 주석에 명시: QGEN(질문 생성)은 학습 데이터가 seed당 1개로 적어 형식이 불안정(질문 대신 프로필/환각을 뱉음). 채점(EVAL)은 데이터가 많아 안정적이라 평가축에서 따로 처리한다.
-- 전략: Claude는 "자체모델로 갈아끼우기 위한 **디딤돌(선생 + 과도기 런타임)**". 학습이 충분한 task부터 화이트리스트에 추가해 점진 교체하고, 전 task가 덮이면 Claude 게이트웨이를 폐기한다.
-
-이 "Claude Haiku 폴백이 실재하는 곳"은 사실상 **면접(D) 도메인뿐**이다(다른 영역은 OpenAI 직행).
-
----
-
-## 5. 다른 영역과의 경계 — 무엇이 D이고 무엇이 아닌가
-
-| D가 소유 | D가 아님(읽기전용/타 영역) |
+| 구현 완료 (현재 동작) | 골격 완성·기본값 off / 키 발급 후 |
 | --- | --- |
-| `interview/**`, `admin/interview`, `file` 미디어 메타 | `application_case` 원본(A/B/C가 채움) |
-| 세션·질문·답변·리포트·에이전트 trace 테이블 | 적합도 점수(C 소유), 프로필 스냅샷(A 소유) |
-| 멀티에이전트 평가 루프·RAG·자체 LLM 학습 파이프라인 | 공통 `schema.sql` 본체·인증/권한·`ApiResponse` envelope(팀장) |
-| 음성/아바타 비언어 점수, 자체 STT | 홈 오케스트레이터 SSE 코어(AutoPrep, D는 **핸들러만**) |
+| 4테이블 세션 모델, 질문·꼬리질문·모범답안 생성·저장 | 자체 LoRA 모델 학습·서빙(파이프라인 완성, 운영 기본값은 OpenAI) |
+| 멀티에이전트 답변 평가·trace, 리포트·총점·캐시 | 생성 task 자체모델 화이트리스트 = **빈 집합**(현재 Claude→OpenAI 폴백) |
+| 폴백 게이트웨이 배선(자체→Claude→OpenAI) | RAG 근거 주입 — 코드 완비, `enabled=false` 기본 off |
+| AutoPrep 오케스트레이터 SSE, 프론트 단일 페이지+탭 | OpenAI/Anthropic 실 키 연동 활성화 |
 
-:::details 헷갈리기 쉬운 경계 — AutoPrep SSE
-홈 화면의 한 줄 입력 → SSE 스트리밍(`plan|part-start|substep|part-done|done`)은 **D 면접 화면이 아니라 AutoPrep 오케스트레이터의 것**이다. D는 그 파이프라인의 ⑤단계 핸들러(`InterviewPrepHandler`: "세션 생성 + 예상 질문 생성")만 제공한다. 면접 자체 화면(8탭)은 **일반 REST**로 동작한다.
+:::warning 정직한 한 줄
+"자체 모델을 학습해 면접 평가에 붙이는 **파이프라인 전체**(데이터 적재 → JSONL → LoRA → 서빙 → 폴백 연결점)는 구현돼 있다. 다만 **운영 기본값은 OpenAI**이고, 생성 task는 자체모델 화이트리스트가 비어 사실상 Claude→OpenAI로 폴백된다. 목적은 '성능 1등'이 아니라 '직접 학습해 서비스에 붙였다는 증거 확보'다."
 :::
 
 ---
 
 ## 6. 권장 학습 순서
 
-데이터 모델 → 핵심 흐름(생성·평가·리포트) → 폴백/자체 LLM → 미디어·프론트 순으로 읽으면 막힘이 없다.
+하위 페이지를 아래 묶음 순서로 읽으면 "데이터 → 생성 → 채점 → 신뢰성 장치 → 시스템·화면" 으로 자연스럽게 깊어진다.
 
-1. [세션·질문·답변 데이터 모델](/area-d/session-model) — 테이블이 머리에 있어야 나머지가 보인다
-2. [예상 질문 생성 (#19)](/area-d/question-generation) — 모범답안 백그라운드·first-writer-wins
-3. [꼬리 질문 (#20)](/area-d/followup-questions) — 왜 압박 모드 전용인가
-4. [면접관 진행 (#21)](/area-d/interviewer-flow) — 텍스트/음성/아바타 3갈래
-5. [답변 평가 (#22)](/area-d/answer-evaluation) — 멀티에이전트 자율 루프(이 영역의 심장)
-6. [면접 리포트 (#23)](/area-d/interview-report) — 캐시·이전 점수 비교·세션 종료
-7. [폴백 게이트웨이 + 2-축 추상화](/area-d/fallback-gateway) — 영역의 척추
-8. [자체 LLM 파인튜닝 파이프라인](/area-d/self-llm-finetune) — 학습 데이터·judge·점진 교체
-9. [미디어 처리(음성/아바타/STT)](/area-d/media-handling) — 비언어 점수·프라이버시
-10. [프론트엔드 UI(8탭 구조)](/area-d/frontend-ui) — 시간기반 진행바·튜토리얼 모드
+**1단계 — 데이터 골격**
+1. [면접 세션 데이터 모델](/area-d/session-model) — session→question→answer + file_asset, 꼬리질문 self-FK, 모범답안 블라인드
 
-배경 지식이 필요하면 [공통 구조화 출력](/ai/openai-structured-output)과 [영역 C 뉴로-심볼릭](/area-c/)을 먼저 읽으면 좋다(C는 "AI에게 점수를 안 맡기는" 반대 철학이라 대비가 명확하다).
+**2단계 — 질문·진행 생성**
+2. [예상 질문 생성 #19](/area-d/question-generation) — 모드별 질문 + 모범답안 백그라운드 일괄 생성
+3. [꼬리 질문 #20](/area-d/followup-questions) — 답변 약점 파고들기, 압박 면접 특화
+4. [면접관 대화 진행 #21](/area-d/interviewer-flow) — 서버 상태 무상태 재계산, 답변 비수정
+
+**3단계 — 채점·리포트**
+5. [답변 평가 #22](/area-d/answer-evaluation) — 모범답안 기준 멀티에이전트 채점·검증·trace
+6. [면접 리포트 #23](/area-d/interview-report) — 세션 종합 평가, 세션 종료
+
+**4단계 — 신뢰성·인프라 장치**
+7. [면접 폴백 게이트웨이](/area-d/fallback-gateway) — 자체→Claude→OpenAI, provider 무관 호출부
+8. [자체 LLM 파인튜닝](/area-d/self-llm-finetune) — Qwen LoRA, 데이터 선순환, 점진 교체
+9. [면접 RAG·근거 주입](/area-d/rag-grounding) — Qdrant 벡터 검색, 기본 off, best-effort
+10. [음성·영상 미디어 처리](/area-d/media-handling) — 원본 미저장, 점수·트랜스크립트만
+
+**5단계 — 시스템 연결·화면**
+11. [SSE 실시간 면접 진행](/area-d/sse-streaming) — SseEmitter + CompletableFuture, 폴링·WebSocket 대비
+12. [오케스트레이터 INTERVIEW 파트](/area-d/orchestrator-interview) — 얇은 어댑터, JOB 완료 후 출발
+13. [D 프론트엔드 UI/UX](/area-d/frontend-ui) — 단일 InterviewPage + 8탭, API 계약
+14. [면접 플레이북](/area-d/interview-playbook) — 종합 답변 대본
+
+연관: [AI 오케스트레이터](/flow/ai-orchestrator) · [AI 공급자·폴백](/flow/ai-providers-fallback) · [전체 프로젝트 면접](/flow/interview-whole-project)
 
 ---
 
-## 7. 단골 면접 질문 5개
+## 7. D 면접 단골질문 5개 (요약 답안)
 
-면접관이 영역 D에 대해 가장 자주 묻는 질문과 한 줄 모범 방향.
-
-::: details Q1. 면접 한 사이클 전체 흐름을 설명해 주세요.
-세션 생성(지원 건 + 모드) → 예상 질문 생성(+ 모범답안 백그라운드) → 진행(텍스트/음성/아바타) → 멀티에이전트 답변 평가 → 리포트. 리포트 생성이 곧 세션 종료(`ended_at` 세팅)라는 점을 짚으면 좋다.
+:::details Q1. "면접 데이터를 어떻게 모델링했나요?"
+지원 건에 종속된 `interview_session`을 뿌리로, 그 아래 `interview_question`(본질문·꼬리질문이 self-FK로 한 테이블), `interview_answer`(질문당 여러 답변·채점 결과), 채점 trace `interview_agent_step`, 업로드 메타 `file_asset`까지 4~5개 테이블의 관계입니다. 영속성은 MyBatis만 씁니다.
 :::
 
-::: details Q2. LLM 경로를 왜 생성/채점 두 갈래로 나눴나요?
-생성과 채점은 폴백 정책·모델 티어(`gpt-5.4-mini` vs `gpt-5.4`)·과금·자체모델 교체 진척이 전부 다르다. 한 게이트웨이에 섞으면 이중 경로가 생겨 채점 폴백이 의도치 않게 달라진다. 그래서 `InterviewLlmGateway`(전송)와 `InterviewEvaluatorProvider`(평가)를 명시적으로 분리했다.
+:::details Q2. "답변 채점, 그냥 GPT에 점수 물어본 건가요?"
+아니요. 질문 생성 시 만든 **모범답안을 만점(100점) 기준**으로 고정하고, `InterviewAgentOrchestrator`가 채점 → 적대적 검증 → 필요 시 재채점을 도는 멀티에이전트 루프로 0~100점을 냅니다. 모든 단계는 `interview_agent_step`에 trace로 남아 사후 감사가 됩니다.
 :::
 
-::: details Q3. 자체 모델(OSS)은 실제로 돌아가나요?
-정직하게: 생성 task는 `OSS_GENERATION_TASKS`가 빈 집합이라 **현재 비활성**(QGEN 학습 데이터 부족). 질문/리포트 생성은 Claude→OpenAI 폴백으로 동작한다. 채점용 자체 모델(`OssAnswerEvaluator`)은 구현돼 있으나 기본값은 OpenAI다. Claude는 자체모델로 가는 디딤돌이고, 학습이 충분한 task부터 점진 교체하는 로드맵이다.
+:::details Q3. "LLM이 죽거나 한도가 차면 면접이 멈추나요?"
+아니요. 면접의 모든 구조화 호출은 `FallbackInterviewLlmGateway` 하나를 거쳐 자체 모델 → Claude Haiku → OpenAI 순으로 자동 폴백합니다. 호출부는 어느 provider가 응답했는지 모르고, 한 곳만 갈아끼우면 전 호출의 provider가 바뀝니다.
 :::
 
-::: details Q4. 모범답안을 왜 백그라운드로 미리 만들고 채점 기준으로 재사용하나요?
-사용자가 보는 모범답안, 채점의 만점 기준, 블라인드 복습의 채점 기준이 어긋나면 신뢰가 깨진다. 그래서 질문 INSERT 직후 `afterCommit` + 백그라운드 스레드로 6개를 일괄 생성하고, `first-writer-wins`(조건부 UPDATE)로 단 하나만 고정해 세 곳이 항상 일치하게 만든다.
+:::details Q4. "자체 LLM은 실제로 돌고 있나요, 계획인가요?"
+파이프라인 전체(데이터 적재 → JSONL → LoRA 학습 → vLLM/Ollama 서빙 → 폴백 연결)는 구현돼 있고, 운영 기본값은 OpenAI입니다. 생성 task는 자체모델 화이트리스트가 빈 집합이라 사실상 Claude→OpenAI로 폴백됩니다. 목적은 최고 성능이 아니라 "직접 학습해 붙였다는 증거 확보"입니다.
 :::
 
-::: details Q5. 다른 영역(B/C/A) 데이터를 어떻게 쓰나요?
-`ApplicationCaseAccessService`로 소유 검증 후 읽기전용 참조한다. 현재 질문 프롬프트에 실제로 들어가는 건 B(회사·직무·공고 원문)뿐이고, C(적합도)·A(프로필) 직접 주입은 미연결 상태라 솔직히 "로드맵"이라고 말한다. 반대로 C가 면접 점수를 장기 경향에 참조만 하는 단방향 경계도 함께 설명하면 깊이가 산다.
+:::details Q5. "오케스트레이터에서 면접은 어떻게 한 단계가 되나요?"
+`InterviewPrepHandler`라는 얇은 어댑터가 기존 `InterviewService.createSession` + `generateQuestions`를 그대로 위임 호출합니다(면접 로직 중복 없음). 질문이 공고 원문을 입력으로 쓰므로 의존 순서를 코드 상수로 못 박아 **JOB(B) 완료 후** 출발합니다.
 :::
+
+---
+
+## 8. 직접 말해보기
+
+아래를 보지 않고 60초 안에 말할 수 있으면 D 개요는 통과다.
+
+- D가 답하는 흐름(세션 → 질문 → 답변·채점 → 리포트)과 핵심 단위가 지원 건이라는 점
+- 6영역 속 D의 위치 — **A·B·C 입력 합류**, 평가(#22) 출력이 **리포트·E·C 세 갈래**로 분기
+- 담당 AI 5개(#19~23) 이름과 각 한 줄
+- 설계 두 축 — **모범답안 기준 비교 채점**, **자체→Claude→OpenAI 폴백 게이트웨이**
+- 구현 **완료 vs 골격 완성·기본 off** 경계(자체 모델·RAG)
 
 ---
 
 ## 퀴즈
 
-<QuizBox question="영역 D에서 '면접 종료'를 담당하는 동작은 무엇인가?" :choices="['별도의 POST /sessions/{id}/end API', '리포트 생성(getReport)이 ended_at을 세팅', '세션 생성 시 만료 타이머 설정', '관리자가 수동으로 종료']" :answer="1" explanation="별도 종료 API가 없다. getReport가 updateSessionResult로 ended_at을 세팅하면서 세션을 닫는다 — '리포트 = 세션 종료'가 의도적 단순화다." />
+<QuizBox question="영역 D의 답변 평가(#22)에서 채점의 '만점(100점) 기준' 역할을 하는 것은?" :choices="['LLM이 채점할 때마다 새로 만드는 루브릭', '질문 생성 시 함께 만들어 질문에 고정한 모범답안(model_answer)', '사용자가 직접 입력한 기대 답변', '관리자가 운영 메모로 지정한 점수표']" :answer="1" explanation="#19에서 질문과 함께 생성한 모범답안을 질문에 1개만 고정하고, 이를 만점 기준으로 비교 채점한다. 화면 표시·만점 기준·블라인드 복습 채점 기준을 단 하나로 일치시키는 장치다." />
 
-<QuizBox question="OSS_GENERATION_TASKS가 빈 집합인 것이 의미하는 바로 옳은 것은?" :choices="['자체 모델이 모든 생성을 담당한다', '질문·리포트 생성이 현재 Claude→OpenAI 폴백으로만 동작한다', '채점이 비활성화됐다', '폴백 체인이 꺼졌다']" :answer="1" explanation="화이트리스트가 비어 있어 생성 task는 자체 모델로 가지 않고 Claude→OpenAI 폴백으로 동작한다. QGEN 학습 데이터가 seed당 1개로 부족한 것이 명시된 이유다." />
+<QuizBox question="면접 도메인의 LLM 폴백 게이트웨이가 provider를 시도하는 순서로 옳은 것은?" :choices="['OpenAI → Claude Haiku → 자체 모델', '자체 모델 → Claude Haiku → OpenAI', 'Claude Haiku → 자체 모델 → OpenAI', '자체 모델만 사용하고 폴백 없음']" :answer="1" explanation="FallbackInterviewLlmGateway(@Primary)가 자체 모델(현재 생성 화이트리스트는 비어 있음) → Claude Haiku(1차) → OpenAI(2차) 순으로 폴백한다. 호출부는 어느 provider가 응답했는지 모른다." />
 
-<QuizBox question="현재 코드 기준, 예상 질문 생성 프롬프트에 실제로 주입되는 입력은?" :choices="['회사·직무·모드·공고 원문(B)만', 'C의 적합도 점수까지 포함', 'A의 프로필 스냅샷까지 포함', 'B·C·A 전부']" :answer="0" explanation="문서는 C·A 입력을 약속하지만 InterviewOpenAiClient.generateQuestions는 회사명·직무명·모드·공고 원문(B)만 주입한다. C·A 직접 연결은 부분 구현(로드맵)이다." />
+<QuizBox question="6영역 데이터 흐름에서 D의 답변 평가(#22) 출력이 갈라지는 세 갈래로 옳은 것은?" :choices="['A 프로필 / B 공고분석 / F 커뮤니티', '리포트(#23) / E 면접답변 첨삭(#24) / C 장기경향(#16)', '리포트(#23)만 단일 출력', 'C 적합도(#12) / E 결제 / F 챗봇']" :answer="1" explanation="#22는 분기점이다. 같은 세션 안의 리포트(#23)로, E의 면접답변 첨삭(#24)으로, 그리고 C의 장기경향(#16)으로 순환 환류한다." />
+
+<QuizBox question="자체 LLM 파인튜닝의 현재 운영 상태를 가장 정확히 설명한 것은?" :choices="['학습·서빙이 완료되어 모든 면접 task가 자체 모델로 동작한다', '파이프라인은 구현됐으나 운영 기본값은 OpenAI이고 생성 task 화이트리스트는 비어 있다', '자체 모델 코드가 전혀 없고 계획만 있다', 'Claude를 자체 모델로 영구 대체했다']" :answer="1" explanation="데이터 적재→JSONL→LoRA→서빙→폴백 연결까지 골격은 완성됐지만 운영 기본값은 OpenAI다. 생성 task는 OSS_GENERATION_TASKS가 빈 집합이라 사실상 Claude→OpenAI로 폴백된다. 목적은 성능 1등이 아니라 직접 학습해 붙였다는 증거 확보다." />

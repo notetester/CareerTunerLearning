@@ -50,6 +50,7 @@ export default defineConfig({
       {
         text: '영역별 심화',
         items: [
+          { text: '📖 6영역 전체 개요', link: '/areas/' },
           { text: '영역 A · 회원·프로필·인증', link: '/area-a/' },
           { text: '영역 B · 지원건·공고분석', link: '/area-b/' },
           { text: '영역 C · 분석·대시보드', link: '/area-c/' },
@@ -183,9 +184,9 @@ export default defineConfig({
 
       '/ai/': [
         {
-          text: 'AI 기능',
+          text: 'AI 개요 · 공통 개념',
           items: [
-            { text: '개요', link: '/ai/' },
+            { text: 'AI 기능 전체 (#1-34)', link: '/ai/' },
             { text: 'LLM과 프롬프트', link: '/ai/llm-and-prompt' },
             { text: '프롬프트 카탈로그 패턴', link: '/ai/prompt-catalog' },
             { text: '구조화된 출력', link: '/ai/openai-structured-output' },
@@ -198,20 +199,50 @@ export default defineConfig({
           ],
         },
         {
-          text: '내 영역 C',
+          text: '영역별 AI 심화 (A~F)',
           items: [
-            { text: '적합도 분석', link: '/ai/fit-analysis' },
-            { text: '장기 취업경향 분석', link: '/ai/career-trend-analysis' },
-            { text: '대시보드 AI 요약', link: '/ai/dashboard-insight' },
-            { text: '자체 LLM 전략 (설계)', link: '/ai/self-llm-strategy' },
+            { text: 'A · 프로필 AI (#1-5)', link: '/area-a/' },
+            { text: 'B · 공고분석 AI (#6-11)', link: '/area-b/' },
+            { text: 'C · 적합도 AI (#12-18)', link: '/area-c/' },
+            { text: 'D · 면접 AI (#19-23)', link: '/area-d/' },
+            { text: 'E · 첨삭 AI (#24-28)', link: '/area-e/' },
+            { text: 'F · 커뮤니티 AI (#29-34)', link: '/area-f/' },
+            { text: 'AI #1-34 의존 맵', link: '/flow/ai-function-map' },
           ],
         },
         {
-          text: '다른 영역도 알기',
+          text: 'AI 영역별 개요 페이지',
           items: [
+            { text: '적합도 분석 (C)', link: '/ai/fit-analysis' },
+            { text: '장기 취업경향 (C)', link: '/ai/career-trend-analysis' },
+            { text: '대시보드 요약 (C)', link: '/ai/dashboard-insight' },
+            { text: '자체 LLM 전략', link: '/ai/self-llm-strategy' },
             { text: '공고 추출 (B)', link: '/ai/job-posting-extraction' },
-            { text: '가상 면접 (D/E)', link: '/ai/interview-ai' },
-            { text: 'AI 사용량·크레딧', link: '/ai/ai-usage-credit' },
+            { text: '가상 면접 (D)', link: '/ai/interview-ai' },
+            { text: 'AI 사용량·크레딧 (E)', link: '/ai/ai-usage-credit' },
+          ],
+        },
+      ],
+
+      '/areas/': [
+        {
+          text: '영역별 심화',
+          items: [
+            { text: '6영역 전체 개요', link: '/areas/' },
+            { text: '영역 A · 회원·프로필·인증', link: '/area-a/' },
+            { text: '영역 B · 지원건·공고분석', link: '/area-b/' },
+            { text: '영역 C · 분석·대시보드', link: '/area-c/' },
+            { text: '영역 D · 가상 면접', link: '/area-d/' },
+            { text: '영역 E · 첨삭·결제', link: '/area-e/' },
+            { text: '영역 F · 커뮤니티·챗봇', link: '/area-f/' },
+          ],
+        },
+        {
+          text: '영역을 잇는 흐름',
+          items: [
+            { text: '전체 흐름', link: '/flow/' },
+            { text: '사용자 여정', link: '/flow/user-journey' },
+            { text: 'AI #1-34 맵', link: '/flow/ai-function-map' },
           ],
         },
       ],

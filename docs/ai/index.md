@@ -1,158 +1,257 @@
-# AI 기능 개요
+# AI 기능 전체 — 34개를 6영역이 나눠 담당
 
-> CareerTuner의 AI는 "지원 건(Application Case) 하나를 받아 공고·적합도·면접 자료를 한 번에 만들어내는 오케스트레이션 파이프라인"이다. 단일 LLM 호출이 아니라, 도메인별 프롬프트 카탈로그 + structured output + 폴백 체인 + 의존그래프 병렬 실행으로 구성된 시스템이다.
+> CareerTuner의 AI는 흩어진 기능 34개가 아니라, **지원 건(Application Case) 하나**를 따라 흐르는 단일 시스템이다. 6개 영역(A~F)이 수직 분담해 각자 일부 AI 번호를 소유하고, 한 영역의 출력이 다음 영역의 입력이 된다. 이 페이지는 그 34개 AI를 **영역별로 빠짐없이 매핑한 허브**다. 어느 기능이 어디에 있고, 무엇을 받아 무엇을 만들어 어디로 넘기는지를 한 장으로 본다.
 
-이 페이지는 CareerTuner AI 전반의 지도다. 공통 기반 기술부터 영역별(B 공고추출 / C 적합도·경향·대시보드 / D·E 면접) 기능까지, 구현된 것과 설계 단계인 것을 정직하게 구분해서 안내한다. 세부 페이지로 들어가기 전에 이 한 장을 읽으면 전체 그림이 잡힌다.
+이 페이지는 특정 영역에 치우치지 않고 **A부터 F까지 6영역을 동등하게** 다룬다. 각 기능의 프롬프트·점수 규칙·스키마 같은 내부 구현은 해당 영역 심화 페이지로 링크한다: [영역 A](/area-a/) · [영역 B](/area-b/) · [영역 C](/area-c/) · [영역 D](/area-d/) · [영역 E](/area-e/) · [영역 F](/area-f/). 영역 심화 전체 입구는 [영역별 심화 개요](/areas/)에서 찾을 수 있다.
 
-## 1. 이 영역은 무엇인가
+## 1. 큰 그림 — 34개 AI = 6영역 수직 분담
 
-CareerTuner는 "채용공고에 맞춰 내 스펙·면접 답변을 조정해 주는" 플랫폼이다. 그래서 AI가 단순 챗봇이 아니라 **분석 엔진**으로 박혀 있다. 사용자가 지원 건 하나를 만들면, 백엔드는 그 한 건을 입력으로 받아 여러 AI 분석을 단계적으로 돌린다.
+CareerTuner의 핵심 단위는 공고가 아니라 **지원 건**이다. 사용자가 지원 건 하나를 만들면, 6영역의 AI가 그 한 건을 함께 채운다. 번호·명칭·담당은 `docs/TEAM_WORK_DISTRIBUTION.md`의 AI 표 기준이다.
+
+| 영역 | 담당 범위 | AI 번호 | 대표 산출물 | 영역 심화 |
+| --- | --- | --- | --- | --- |
+| **A** | 회원·프로필·인증 | #1~5 | 프로필 요약·기술스택·완성도 진단 | [/area-a/](/area-a/) |
+| **B** | 지원 건·공고·기업 분석 | #6~11 | 공고 구조화·필수/우대·면접포인트 | [/area-b/](/area-b/) |
+| **C** | 적합도·전략·대시보드 | #12~18 | 적합도 점수+근거+다음 행동 | [/area-c/](/area-c/) |
+| **D** | 가상 면접·리포트 | #19~23 | 예상질문·답변평가·리포트 | [/area-d/](/area-d/) |
+| **E** | 첨삭·결제·크레딧 | #24~28 | 원문 비수정 개선안·요금 추천 | [/area-e/](/area-e/) |
+| **F** | 커뮤니티·고객센터·챗봇 | #29~34 | 후기요약·실제질문·문의초안 | [/area-f/](/area-f/) |
+
+여섯 영역은 따로 노는 게 아니라 **데이터 의존으로 연결**된다. A·B가 입력을 만들고, C가 비교 허브에서 점수를 내고, D가 질문으로 펼치고, E가 다듬고, F가 바깥에서 순환한다.
 
 ```text
-지원 건(Application Case)
-   ├─ [B] 공고 분석 (JobAnalysis)        ← 공고 텍스트에서 직무·요건 구조화
-   ├─ [C] 적합도 분석 (FitAnalysis)      ← 내 스펙 vs 공고 요건 매칭 점수
-   ├─ [C] 취업경향 분석 (CareerTrend)    ← 여러 지원 건을 가로질러 패턴 분석
-   ├─ [C] 대시보드 인사이트              ← 전체 현황 요약 한 문단
-   └─ [D/E] 가상 면접 (Interview)        ← 공고 기반 질문 생성·답변 평가
+   [A 프로필]              [B 공고/기업]
+   #1~#5 구조화            #6~#11 구조화
+        │                       │
+        └──────────┬────────────┘
+                   ▼
+          [C 적합도 #12~#18]  ◀── A 스냅샷 + B 필수/우대
+                   │ 점수·근거
+                   ▼
+          [D 가상면접 #19~#23] ◀── B#6/#11 + C#12 + A 스냅샷
+                   │ 질문·평가
+        ┌──────────┴───────────┐
+        ▼                      ▼
+   [E 첨삭 #24~#28]      [C#16 장기경향(순환)]
+        ▲
+   [F 커뮤니티 #29~#34] ── #31 실제질문 ─▶ D(순환)
 ```
 
-핵심은 이 분석들이 **서로 의존한다**는 점이다. 적합도(C)와 면접(D)은 공고 분석(B)이 끝나야 시작할 수 있다. 이 의존관계를 조율하는 것이 오케스트레이터다.
-
-## 2. 공통 기반 기술 6가지
-
-영역에 상관없이 모든 AI 기능이 깔고 가는 공통 토대다. 각 항목은 별도 페이지로 깊이 파고들 수 있다.
-
-| 기술 | 한 줄 정의 | 대표 클래스/위치 |
-| --- | --- | --- |
-| **LLM 호출** | 외부/로컬 대규모 언어모델에 프롬프트를 보내 결과를 받는 통신 계층 | `OpenAiResponsesClient` |
-| **프롬프트 카탈로그** | 도메인별 시스템 프롬프트를 클래스 상수로 모아둔 패턴 | `FitAnalysisPromptCatalog` 등 |
-| **Structured Output** | LLM이 자유 텍스트가 아닌 정해진 JSON 스키마로만 답하도록 강제 | `OpenAiResponsesClient.structuredRequest` |
-| **LangChain4j + Ollama** | 로컬 LLM과 대화 메모리를 붙이는 Java AI 프레임워크 | `ChatMemoryConfig`, `FaqDraftAiClient` |
-| **RAG** | 외부 지식을 벡터DB에서 검색해 프롬프트에 끼워넣는 기법 | `QdrantClient`(면접 RAG) |
-| **오케스트레이터** | 여러 AI 단계를 의존그래프대로 병렬 실행·진행보고 | `AutoPrepOrchestrator` |
-
-:::tip 면접에서 이 표 하나면 된다
-"공통 기반은 LLM 호출 계층, 프롬프트 카탈로그, structured output, LangChain4j+Ollama, RAG, 그리고 이 단계들을 묶는 오케스트레이터입니다." — 6개 키워드만 말해도 전체 구조를 안다는 인상을 준다.
+:::tip 면접 한 줄 요약
+"AI 기능 34개는 6영역이 수직 분담합니다. A가 프로필을 구조화하고, B가 공고를 쪼개고, 둘이 만나는 허브가 C 적합도입니다. C가 D 면접 질문으로 펼쳐지고, D의 답변이 E 첨삭으로, F 커뮤니티가 실제 질문을 다시 D로 순환시킵니다. 이 전체를 한 요청으로 묶는 게 AutoPrep 오케스트레이터입니다."
 :::
 
-### 2-1. 왜 structured output이 핵심인가
+## 2. 영역별 34기능 매핑 (A~F 전부)
 
-LLM에게 "적합도 점수와 부족 기술을 알려줘"라고 하면 매번 형식이 다른 자유 텍스트가 온다. 백엔드가 이걸 파싱해서 `fit_analysis` 테이블에 넣으려면 형식이 고정돼야 한다. 그래서 `OpenAiResponsesClient`는 **JSON 스키마를 요청에 함께 보내** 모델이 그 스키마로만 답하게 만든다. 파싱 실패·필드 누락이 사라지고, DB 컬럼과 1:1로 매핑된다.
+각 표는 **기능명 · 입력 · 출력(→ 누구에게) · 연결**을 담는다. 어느 한 영역도 빠지지 않는다.
 
-### 2-2. 왜 폴백 체인인가
+### 2-1. A — 회원·프로필·스펙 추출 (#1~5)
 
-외부 LLM은 키 미발급·요금·장애·응답 깨짐 같은 이유로 언제든 실패할 수 있다. CareerTuner는 화면이 깨지지 않도록 **다단계 폴백**을 둔다. C 적합도의 진입점 `FallbackFitAnalysisAiService`(@Primary)가 대표 예시다.
+A는 원천 테이블 `user_profile`을 읽어 구조화한다. 출력은 **프로필 스냅샷**으로 동결되어 전 영역 공통 입력이 된다. AI는 5개지만 사용자에게는 `/profile/ai/{summary, skills, completeness}` **3버튼으로 통합 노출**된다.
 
-```text
-자체모델(OSS) → OpenAI → 내부 Mock
-   (config가 oss이고          (키 있으면 실제 호출,     (항상 동작하는
-    base-url 있을 때만)         없거나 실패하면 폴백)      안전망)
-```
-
-기본값은 `provider=openai`라서 자체모델은 명시적으로 켜야 시도된다. 덕분에 "AI가 죽어도 빈 화면이 아니라 최소한의 결과는 나온다."
-
-## 3. 영역별 AI 기능 지도
-
-수직 분담(A~F)에 따라 AI 기능도 담당 영역이 나뉜다. 본인은 **영역 C**다.
-
-| 영역 | 기능 | 상태 | 대표 클래스 / 테이블 |
+| # | 기능 | 입력 | 출력 → 연결 |
 | --- | --- | --- | --- |
-| **B** | 공고 추출 (PDF·HTML→텍스트) | 구현됨 | `JobPostingTextExtractor`, ml `job-posting-worker`(Flask) |
-| **B** | 공고 분석 (구조화) | 구현됨 | `OpenAiJobAnalysisService`, `job_analysis` |
-| **C** | 적합도 분석 | 구현됨 | `OpenAiFitAnalysisAiService`, `fit_analysis` |
-| **C** | 장기 취업경향 분석 | 구현됨 | `CareerAnalysisRunService`, `career_analysis_run` |
-| **C** | 대시보드 인사이트 | 구현됨 | `DashboardInsightAiService` |
-| **C** | 자체 LLM 커리어전략 모델 | 연구·학습 단계 | ml `career-strategy-llm`, `OssFitAnalysisAiService`(연동부) |
-| **D/E** | 가상 면접 질문·답변 평가 | 구현됨 | `InterviewAgentOrchestrator`, `interview_session` |
-| **D/E** | 면접 RAG | 구현됨(토글) | `QdrantClient`, `INTERVIEW_RAG_ENABLED` |
-| 공통 | AutoPrep 오케스트레이터 | 구현됨 | `AutoPrepOrchestrator` |
-| 공통 | AI 사용량·크레딧 | 구현됨 | `ai_usage_log`, `INSUFFICIENT_CREDIT` |
+| 1 | 이력서/프로필 요약 | resume·career·projects | 경력·강점 요약 → C#12 입력 |
+| 2 | 기술스택 추출 | resume·projects·skills | 기술명/숙련도 → C·D |
+| 3 | 자소서 핵심키워드 | self_intro | 강점·가치관 → E#25 참조 |
+| 4 | 경력/프로젝트 키워드 | career·projects | 역할·기술·성과 → D·E#26 |
+| 5 | 프로필 완성도 진단 | user_profile 전체 | 누락·보강 우선순위 |
 
-:::warning 구현 vs 설계 단계 — 정직하게 말하기
-**자체 LLM 커리어전략 모델**은 백엔드 연동 껍데기(`OssFitAnalysisAiService`, `CareerAnalysisOssClient`)와 ml쪽 학습·평가 파이프라인(`ml/career-strategy-llm`: LoRA 파인튜닝, RAG PoC, 멀티모델 judge 평가 하니스)은 실제로 존재한다. 다만 **운영 기본 경로는 아직 OpenAI**이고, 자체모델은 `provider=oss`로 켜야 시도되는 **연구·학습 단계**다. 면접에서 "이미 자체모델로 서비스 중"이라고 말하면 안 된다. "OpenAI로 운영하면서 자체 SLM으로 대체하는 파인튜닝·평가 파이프라인을 구축 중"이 정확한 표현이다.
+심화: [이력서 요약(A)](/area-a/ai-resume-summary) · [기술 추출(A)](/area-a/ai-skill-extraction) · [키워드 추출(A)](/area-a/ai-keyword-extraction) · [완성도 진단(A)](/area-a/ai-profile-completeness)
+
+### 2-2. B — 지원 건·공고·기업 분석 (#6~11)
+
+B는 공고 원문(또는 OCR 텍스트)을 받아 1차로 #6을 만들고 거기서 #7~11을 파생한다. **#6이 #7/#8/#9/#11의 입력**이라 영역 내부에도 사슬이 있다.
+
+| # | 기능 | 입력 | 출력 → 연결 |
+| --- | --- | --- | --- |
+| 6 | 공고 분석(구조화) | 공고원문/OCR | 직무·요건 구조 → #7~11 기준 |
+| 7 | 필수조건 추출 | #6 | 필수 요건 → C#12 기준 |
+| 8 | 우대조건 추출 | #6 | 우대 요건 → C#12 기준 |
+| 9 | 담당업무 요약 | #6 | 업무 범위 → D 참고 |
+| 10 | 기업 현황 분석 | 기업명·외부자료 | 검증사실 vs 추론 |
+| 11 | 면접 포인트 도출 | #6 + 기업분석 | 면접 포인트 → D#19 입력 |
+
+심화: [텍스트 추출·OCR(B)](/area-b/text-extraction-ocr) · [공고 분석(B)](/area-b/job-analysis) · [필수/우대(B)](/area-b/required-preferred) · [담당업무 요약(B)](/area-b/duties-summary) · [기업 분석(B)](/area-b/company-analysis) · [면접 포인트(B)](/area-b/interview-points)
+
+### 2-3. C — 적합도·전략·대시보드 (#12~18)
+
+#12가 흐름의 **비교 허브**다. **입력 = A 프로필 스냅샷 + B의 #7/#8(필수/우대)**, 출력 = 점수·근거. 여기서 #13~18이 다시 갈라진다.
+
+| # | 기능 | 입력(의존 출처) | 출력 → 연결 |
+| --- | --- | --- | --- |
+| 12 | 공고-스펙 적합도 | A 스냅샷 + B#7/#8 | 점수·근거 → D#19 |
+| 13 | 부족역량 추천 | #12 | 단기/장기 보완 |
+| 14 | 학습 로드맵 | #13 | 학습순서·실습 |
+| 15 | 자격증 추천 | #13 + 희망직무 | 자격증 우선순위 |
+| 16 | 장기 취업경향 | 여러 지원건 + D#22 + E결과 | 반복부족·패턴(순환 수신) |
+| 17 | 다음지원 방향 | #16 + 최근결과 | 재지원 전략 |
+| 18 | 대시보드 요약 | #12·#13·#14 | 핵심요약·다음액션 |
+
+:::tip 점수는 AI가 정하지 않는다 (뉴로-심볼릭)
+C #12에서 LLM은 근거 텍스트만 **생성**할 뿐, 점수·신뢰도·판단은 서버 규칙엔진이 결정한다. `FitAnalysisServiceImpl`이 "AI 판단이 아니라 입력 상태 기반의 결정적 계산"임을 명시한다. 그래서 mock AI든 실 AI든 같은 점수가 나온다.
 :::
 
-## 4. C가 직접 만든 부분 (영역 표시)
+심화: [적합도 분석(C)](/area-c/fit-analysis) · [점수 엔진(C)](/area-c/score-engine) · [부족역량·학습(C)](/area-c/gap-and-learning) · [지원 전략(C)](/area-c/application-strategy) · [장기 경향(C)](/area-c/career-trend) · [대시보드 인사이트(C)](/area-c/dashboard-insight) · [뉴로-심볼릭(C)](/area-c/neuro-symbolic)
 
-본인이 책임진 C 영역의 AI 코드를 한눈에 정리한다. 면접에서 "당신이 한 건 뭐냐"에 대한 답이다.
+### 2-4. D — 가상 면접·리포트 (#19~23)
 
-- **적합도 분석** `fitanalysis/ai/` — `FitAnalysisAiService` 인터페이스, 진입점 `FallbackFitAnalysisAiService`(@Primary, 폴백 디스패처), `OpenAiFitAnalysisAiService`(실제 호출), `MockFitAnalysisAiService`(안전망), 결과 DTO `FitAnalysisAiResult`. 점수·매칭기술·부족기술·추천학습·추천자격증·지원전략을 산출하고 `fit_analysis` 테이블에 저장. **점수와 지원 판정은 LLM 출력을 그대로 믿지 않고 서버 규칙·검증 로직으로 확정**한다.
-- **장기 취업경향 분석** `analysis/ai/` — `CareerTrendAiService`/`OpenAiCareerTrendAiService`, 프롬프트 `CareerTrendPromptCatalog`, 결과 `career_analysis_run`. 여러 지원 건을 가로질러 반복 부족역량·지원패턴·다음방향을 뽑는다.
-- **대시보드 인사이트** `dashboard/ai/` — `DashboardInsightAiService`, `DashboardInsightPromptCatalog`. 전체 현황을 한 문단으로 요약.
-- **자체 LLM 파이프라인** `ml/career-strategy-llm/`(설계·학습 단계) — Qwen/Gemma 베이스 SLM을 LoRA로 파인튜닝하고, RAG·멀티모델 judge로 평가하는 연구 트랙. 백엔드 연동부(`OssFitAnalysisAiService`)는 폴백 체인 1순위 자리만 잡아둔 상태.
+#19(예상 질문)는 **B#6/#11 + C#12 + A 스냅샷**을 한꺼번에 받아 A·B·C의 결과가 D에서 합류한다. 세션이 돌면 #20~22가 작동하고, 세션이 끝나면 #23(리포트)이 전체를 요약한다.
 
-## 5. 핵심 동작 원리 — AutoPrep 오케스트레이터
+| # | 기능 | 입력(의존 출처) | 출력 → 연결 |
+| --- | --- | --- | --- |
+| 19 | 예상 질문 생성 | B#6/#11 + C#12 + A스냅샷 | 본질문 → 세션 |
+| 20 | 꼬리질문 생성 | #19 + 답변 | 후속질문 |
+| 21 | 면접관 진행 | 세션 상태 | 진행 멘트(SSE 실시간) |
+| 22 | 답변 평가 | 질문 + 답변 | 점수·피드백(세 갈래 분기) |
+| 23 | 면접 리포트 | #22 누적 | 총점·카테고리·피드백 |
 
-여러 AI 단계를 어떻게 묶는지가 시스템의 심장이다. `AutoPrepOrchestrator`가 그 역할이다.
+#22(답변 평가)는 **세 곳으로 갈라지는 분기점**이다: 리포트(#23), E 첨삭(#24), C 장기경향(#16, 순환). D의 LLM 게이트웨이는 **자체 LLM(Qwen3 LoRA) → Claude Haiku(claude-haiku-4-5) → OpenAI** 폴백이 실제 코드로 작동하는 영역이라 자체모델 교체 실험이 가장 활발하다.
+
+심화: [질문 생성(D)](/area-d/question-generation) · [꼬리질문(D)](/area-d/followup-questions) · [면접관 진행(D)](/area-d/interviewer-flow) · [답변 평가(D)](/area-d/answer-evaluation) · [리포트(D)](/area-d/interview-report) · [폴백 게이트웨이(D)](/area-d/fallback-gateway) · [면접 오케스트레이션(D)](/area-d/orchestrator-interview)
+
+### 2-5. E — 첨삭·결제·크레딧 (#24~28)
+
+E는 D의 답변과 A의 원문을 받아 개선안을 만든다. **원칙: 원문 덮어쓰기 금지** — `correction_request`에 `original_text`/`improved_text`를 분리 저장한다. 첨삭 4종(#24~27)은 단일 통합 모델 1개로 구현되고, #28만 성격이 다른 메타 기능이다.
+
+| # | 기능 | 입력(의존 출처) | 비고 |
+| --- | --- | --- | --- |
+| 24 | 면접답변 첨삭 | D#19/#22 | STAR 구조 개선 |
+| 25 | 자소서 첨삭 | A 자소서 + A#3 | 흐름·강점 |
+| 26 | 이력서 표현 개선 | A 이력서 + A#4 | 성과중심 문장 |
+| 27 | 포트폴리오 개선 | 포폴 설명 + A#4 | 문제해결·결과 |
+| 28 | 요금제 추천 | AI사용량 + 크레딧잔액 | 콘텐츠 아닌 메타 기능 |
+
+E는 자체 LLM 첨삭 모델(Qwen3 LoRA)을 중점으로 연구하며, `ai_usage_log` 기반 전사 사용량 대시보드도 담당한다. 크레딧 차감은 **성공 시에만, 멱등**으로 처리된다.
+
+심화: [답변 첨삭(E)](/area-e/ai-answer-correction) · [자소서 첨삭(E)](/area-e/ai-coverletter) · [이력서 개선(E)](/area-e/ai-resume-improve) · [포트폴리오(E)](/area-e/ai-portfolio) · [요금 추천(E)](/area-e/ai-plan-recommend) · [원문 보존 원칙(E)](/area-e/correction-principles) · [크레딧 시스템(E)](/area-e/credit-system)
+
+### 2-6. F — 커뮤니티·고객센터·챗봇 (#29~34)
+
+F는 사용자 여정 메인 라인 바깥에 있지만, **#31(실제 면접질문 추출)이 D의 참고 데이터로 순환**한다. 후기 → 실제질문 추출 → D 예상질문 보강의 두 번째 고리다. F의 챗봇은 LangChain4j 에이전트 + Ollama(qwen3) 기반이다.
+
+| # | 기능 | 입력 | 출력 → 연결 |
+| --- | --- | --- | --- |
+| 29 | 면접후기 요약 | 후기·태그·댓글 | 기업/난이도 요약 |
+| 30 | 게시글 태그추천 | 제목·본문 | 검색/필터 태그 |
+| 31 | 실제 면접질문 추출 | 후기·댓글 | → D 참고데이터(순환) |
+| 32 | 관심기반 추천 | 관심직무·읽은글 | 추천 게시글 |
+| 33 | 부적절/신고 분류 | 신고사유·본문 | 운영 분류(라벨, 운영자 확정) |
+| 34 | 고객문의 답변초안 | 문의·FAQ | 초안(RAG, 운영자 확정) |
+
+F의 일관 원칙은 **"AI는 운영자 보조이지 자동 처분자가 아니다"** — #33·#34는 AI가 라벨/초안만 만들고 최종 확정은 운영자가 한다. 인테이크 챗봇은 AutoPrep 오케스트레이터의 입구 역할을 한다.
+
+심화: [후기 요약(F)](/area-f/ai-review-summary) · [태그 추천(F)](/area-f/ai-tag-recommend) · [실제 질문 추출(F)](/area-f/ai-question-extract) · [게시글 추천(F)](/area-f/ai-post-recommend) · [신고 분류(F)](/area-f/ai-report-classify) · [문의 답변초안(F)](/area-f/ai-support-draft) · [인테이크 챗봇(F)](/area-f/intake-chatbot) · [LangChain4j 에이전트(F)](/area-f/langchain4j-agent)
+
+## 3. 모든 영역이 공유하는 공통 AI 개념
+
+34개 기능은 영역이 달라도 **같은 토대** 위에 선다. 각 개념은 별도 페이지로 깊이 파고들 수 있다.
+
+| 개념 | 한 줄 정의 | 어디서 쓰나 | 심화 |
+| --- | --- | --- | --- |
+| **LLM·프롬프트** | 언어모델에 시스템 프롬프트를 보내 결과를 받는 호출 계층 | 전 영역 | [LLM과 프롬프트](/ai/llm-and-prompt) |
+| **프롬프트 카탈로그** | 도메인별 시스템 프롬프트를 클래스 상수로 모은 패턴 | A~F 각 도메인 | [프롬프트 카탈로그](/ai/prompt-catalog) |
+| **구조화 출력** | LLM이 자유 텍스트가 아닌 고정 JSON 스키마로만 답하게 강제 | 분석·첨삭 계열 | [구조화된 출력](/ai/openai-structured-output) |
+| **LangChain4j + Ollama** | 로컬 LLM과 대화 메모리를 붙이는 Java AI 프레임워크 | F 챗봇 | [LangChain4j와 Ollama](/ai/langchain4j-ollama) |
+| **RAG·벡터DB** | 외부 지식을 Qdrant에서 검색해 프롬프트에 끼워넣기 | D 면접·F 문의 | [RAG와 Qdrant](/ai/rag-qdrant) |
+| **임베딩·벡터 검색** | 텍스트를 벡터로 바꿔 의미 유사도로 검색(bge-m3) | C·F 추천/검색 | [임베딩과 벡터 검색](/ai/embedding) |
+| **환각·그라운딩** | LLM이 사실을 지어내는 문제와 근거 고정 대응 | 전 영역 | [환각과 그라운딩](/ai/hallucination) |
+| **오케스트레이터** | 여러 AI 단계를 의존그래프대로 병렬 실행·진행보고 | AutoPrep 전체 | [AI 오케스트레이터](/ai/orchestrator-autoprep) |
+| **폴백 체인** | LLM이 실패해도 화면이 깨지지 않게 다단계 대체 | 전 영역(편차) | [폴백 체인](/ai/fallback) |
+
+:::details 왜 구조화 출력이 핵심인가
+LLM에게 "적합도 점수와 부족 기술을 알려줘"라고 하면 매번 형식이 다른 자유 텍스트가 온다. 백엔드가 이걸 `fit_analysis` 같은 테이블에 넣으려면 형식이 고정돼야 한다. 그래서 요청에 **JSON 스키마를 함께 보내** 모델이 그 스키마로만 답하게 만든다. 파싱 실패·필드 누락이 사라지고 DB 컬럼과 1:1로 매핑된다.
+:::
+
+:::details 왜 폴백 체인인가
+외부 LLM은 키 미발급·요금·장애·응답 깨짐으로 언제든 실패할 수 있다. 그래서 **자체 OSS → Claude Haiku(claude-haiku-4-5) → OpenAI(gpt-5 계열) → Mock** 같은 다단계 대체를 둔다. 단, 이 사상은 영역별 편차가 크다 — Claude Haiku 폴백이 실제 코드로 작동하는 건 현재 D(면접)와 플래너 두뇌뿐이고, C는 OSS→OpenAI→Mock, F·인테이크 챗봇은 Ollama 직접 호출이다. 자세한 영역 편차는 [AI 공급자·폴백 전략](/flow/ai-providers-fallback) 참고.
+:::
+
+## 4. 한 요청으로 묶기 — AutoPrep 오케스트레이터
+
+사용자가 기능을 하나씩 누르면 그 기능만 호출된다. 하지만 "통째로 준비해줘"라고 하면 **F 인테이크 챗봇 → 플래너 → 의존 그래프 병렬 실행 → SSE 진행보고**로 6영역 AI가 한 번에 돈다.
 
 ```text
-1. Planner가 PrepPlan 생성: steps = [PROFILE, JOB, FIT, WRITE, INTERVIEW, COMMUNITY]
-2. 의존그래프 적용: FIT·INTERVIEW 는 JOB 에 의존
+1. F 인테이크 챗봇이 슬롯(직무·공고 등) 수집 → 플래너가 PrepPlan 생성
+2. 의존 그래프 적용: FIT(C)·INTERVIEW(D)는 JOB(B)에 의존
       DEPS = { FIT→[JOB], INTERVIEW→[JOB] }
-3. CompletableFuture 로 병렬 실행
+3. CompletableFuture 병렬 실행
       - 독립 파트(PROFILE/JOB/WRITE/COMMUNITY)는 동시 출발
-      - FIT·INTERVIEW 는 JOB future 가 끝난 뒤 thenRunAsync
-4. 진행 보고
-      - run()      → 동기, 결과를 plan 순서로 정렬해 한 번에 반환
-      - runStream()→ SSE 로 plan/part-start/substep/part-done/done 실시간 전송
-5. 견고성: 핸들러 미구현/비활성 → SKIPPED, 예외 → FAILED 로 기록하고 끝까지 완주
+      - FIT·INTERVIEW는 JOB future가 끝난 뒤 thenRunAsync
+4. SSE 진행 보고: plan → part-start → substep → part-done → done
+5. 견고성: 핸들러 없음/비활성 → SKIPPED, 예외 → FAILED로 기록하고 완주
 ```
 
-핵심 설계 포인트 3가지:
+오케스트레이터는 **새 AI를 만들지 않는다.** 각 영역의 기존 도메인 서비스를 6개 파트로 래핑할 뿐이다. 한 영역이 실패해도 다른 파트로 번지지 않는다.
 
-| 포인트 | 무엇 | 왜 |
+| 파트 key | 호출 서비스(영역) | 묶는 AI |
 | --- | --- | --- |
-| 의존그래프 병렬 | 독립 단계는 동시, 의존 단계만 대기 | 전체 응답 시간 단축 |
-| SSE 진행보고 | 단계별 진행을 실시간 푸시 | AI는 느리니까 사용자가 멈춘 줄 알면 안 됨 |
-| 부분 실패 허용 | 한 단계 실패가 전체를 안 죽임 | 6개 중 1개 실패해도 나머지 5개는 보여준다 |
+| PROFILE | A 프로필 AI | #1·#2·#5 |
+| JOB | B 공고 분석 | #6~11 |
+| FIT | C 적합도 | #12~ |
+| WRITE | E 첨삭 | #25 |
+| INTERVIEW | D 면접 | #19~ |
+| COMMUNITY | F 커뮤니티(읽기전용) | — |
 
-## 6. 권장 학습 순서
+전체 오케스트레이션은 [AI 오케스트레이터 전체](/flow/ai-orchestrator)에서, 34기능 의존을 화살표 단위로 보려면 [AI 기능 #1-34 맵](/flow/ai-function-map)에서 본다.
 
-아래 순서로 세부 페이지를 읽으면 막힘없이 이어진다. (일부 페이지는 작성 예정일 수 있다.)
+## 5. 데이터 소유권 — 화살표는 읽기전용 참조
 
-1. [LLM이란](/ai/llm-and-prompt) — 대규모 언어모델 기본 개념부터
-2. [프롬프트 엔지니어링](/ai/llm-and-prompt) — 시스템 프롬프트와 카탈로그 패턴
-3. [Structured Output](/ai/openai-structured-output) — JSON 스키마 강제와 파싱 안정성
-4. [폴백 체인 / Fallback](/ai/fallback) — OSS→OpenAI→Mock 다단계 안전망
-5. [LangChain4j와 Ollama](/ai/langchain4j-ollama) — 로컬 LLM·대화 메모리
-6. [RAG](/ai/rag-qdrant) — 벡터DB(Qdrant) 검색 증강 생성
-7. [AutoPrep 오케스트레이터](/ai/orchestrator-autoprep) — 의존그래프 병렬 실행·SSE
-8. [적합도 분석 (C)](/ai/fit-analysis) — 본인 핵심 기능 심화
+영역 간 화살표는 "복사"가 아니라 **읽기전용 참조**다. 각 영역은 자기 결과 테이블만 소유하고, 타 영역 원본은 비수정으로 읽는다.
 
-관련 기반 지식: [DTO](/glossary/dto), [ApiResponse 엔벨로프](/glossary/api-response-envelope), [SSE](/glossary/sse), [JWT 보안](/backend/jwt-security)
+- **A** `user_profile`이 원천이고 수정 책임도 A. B/C/D/E는 읽기만.
+- **B** `job_analysis`는 C/D/E가 읽고, 원문 revision은 append-only(불변).
+- **C** 분석 시점 입력을 `source_snapshot`으로 **동결**하고 SHA-256 fingerprint로 캐싱해, 원본이 바뀌어도 그때 점수의 근거가 재현된다. C `fit_analysis`는 D가 읽는다.
+- **D** `interview_*` 결과는 C(장기경향)·E(첨삭)가 읽는다.
+- **E** 첨삭 결과를 원문에 덮어쓰지 않고 별도 행에 저장한다.
 
-## 7. 이 영역 단골 면접질문 5개
+테이블 단위 소유권 전체 맵은 [데이터 소유권 경계 맵](/flow/data-ownership)에서 본다.
 
-1. **"AI 응답이 깨지거나 LLM이 죽으면 어떻게 처리하나요?"**
-   다단계 폴백 체인으로 대응합니다. `FallbackFitAnalysisAiService`가 자체모델→OpenAI→Mock 순으로 디스패치하고, structured output으로 JSON 형식을 강제해 파싱 실패를 줄입니다. 한 단계가 실패해도 다음 단계가 받습니다.
+## 6. 구현 상태 — 구현됨 vs 계획 (정직하게)
 
-2. **"LLM이 매번 다른 형식으로 답하는 문제는 어떻게 풀었나요?"**
-   `OpenAiResponsesClient`에서 요청에 JSON 스키마를 함께 보내 structured output으로 받습니다. 그 결과를 DB 테이블(`fit_analysis` 등) 컬럼과 1:1로 매핑합니다.
+| 항목 | 상태 |
+| --- | --- |
+| 34기능 영역 분담 맵 | 문서 합의(`TEAM_WORK_DISTRIBUTION.md`), 각 영역 도메인 서비스로 구현 진행(영역별 편차 있음) |
+| C #12 점수·신뢰도 = 서버 규칙(결정적) | 코드로 확인됨 |
+| 크레딧 차감 = 성공 시에만·멱등 | 코드로 확인됨(실패 호출 미차감) |
+| D 면접 자체 LLM(Qwen3 LoRA) | 폴백 게이트웨이가 실제 작동하는 가장 활발한 실험장 |
+| C 자체 LLM 커리어전략 모델 | 연동 자리만 잡아둔 **연구·학습 단계**(운영 기본 경로는 외부 LLM) |
+| Claude Haiku 폴백 | 현재 D(면접) + 플래너 두뇌에서만 코드로 작동, 나머지 영역은 편차 |
 
-3. **"여러 AI 분석을 어떻게 조율하나요? 순서가 있나요?"**
-   `AutoPrepOrchestrator`가 의존그래프(FIT·INTERVIEW는 JOB에 의존)를 보고 `CompletableFuture`로 병렬 실행합니다. 독립 단계는 동시에, 의존 단계만 선행 단계 완료 후 시작하고, 진행은 SSE로 실시간 보고합니다.
+:::warning 정직한 표현
+자체 LLM이 "이미 서비스 중"이라고 말하면 안 된다. 정확한 표현은 **"외부 LLM(gpt-5/claude-haiku-4-5)으로 운영하면서, 자체 SLM(qwen3 LoRA 파인튜닝)으로 점진 대체하는 학습·평가 파이프라인을 구축 중"**이다. D 면접 영역이 그 교체가 가장 앞서 있고, C 전략 모델은 연동 자리만 잡아둔 연구 단계다.
+:::
 
-4. **"LLM 점수를 그대로 믿어도 되나요?"**
-   안 됩니다. 적합도 점수와 지원 판정은 LLM 출력을 입력값으로만 쓰고, 최종값은 서버 규칙·검증 로직으로 확정합니다. LLM은 보조이고 결정권은 서버에 둡니다.
+## 7. 권장 학습 순서
 
-5. **"자체 LLM도 쓰나요?"**
-   운영 기본은 OpenAI이고, 자체 SLM(Qwen/Gemma 베이스, LoRA 파인튜닝)으로 대체하는 파이프라인을 `ml/career-strategy-llm`에서 학습·평가 단계로 구축 중입니다. 백엔드 폴백 체인에 연동 자리(`OssFitAnalysisAiService`)를 미리 잡아뒀습니다.
+1. [LLM과 프롬프트](/ai/llm-and-prompt) — 모든 AI 기능의 기본 호출 계층
+2. [프롬프트 카탈로그](/ai/prompt-catalog) — 도메인별 시스템 프롬프트 패턴
+3. [구조화된 출력](/ai/openai-structured-output) — JSON 스키마 강제와 파싱 안정성
+4. [환각과 그라운딩](/ai/hallucination) — 사실 날조 문제와 근거 고정
+5. [폴백 체인](/ai/fallback) — 영역별 다단계 안전망
+6. [RAG와 Qdrant](/ai/rag-qdrant) · [임베딩](/ai/embedding) — 검색 증강 생성
+7. [LangChain4j와 Ollama](/ai/langchain4j-ollama) — 로컬 LLM·대화 메모리
+8. [AI 오케스트레이터](/ai/orchestrator-autoprep) — 의존그래프 병렬 실행·SSE
+9. [AI 기능 #1-34 맵](/flow/ai-function-map) — 영역 간 의존을 화살표로 종합
+
+관련 기반 지식: [DTO](/glossary/dto) · [ApiResponse 엔벨로프](/glossary/api-response-envelope) · [SSE](/glossary/sse) · [JWT 보안](/backend/jwt-security)
 
 ## 8. 직접 말해보기
 
-:::details 훈련 질문 1 — 30초 엘리베이터 피치
-"CareerTuner의 AI 시스템을 30초로 설명해 보라." 다음 뼈대로 소리 내어 말해보자: ① 지원 건 하나가 입력 → ② 공고·적합도·면접 분석이 단계적으로 → ③ 의존그래프 병렬 오케스트레이션 + structured output + 폴백 체인 → ④ "내가 담당한 건 C 영역의 적합도·경향·대시보드 분석".
+:::details 훈련 1 — 30초 엘리베이터 피치
+"CareerTuner의 AI 34개를 30초로 설명해 보라." 뼈대: ① 지원 건 하나가 입력 → ② 6영역(A~F)이 수직 분담 → ③ A·B 입력 생성, C 비교 허브, D 질문, E 첨삭, F 순환 → ④ 공통 토대(구조화 출력·폴백·오케스트레이터)로 묶음.
 :::
 
-:::details 훈련 질문 2 — 견고성 설계
-"AI가 불안정한데 어떻게 사용자 경험을 지켰나?" structured output(형식 보장) + 폴백 체인(가용성 보장) + 부분 실패 허용(SKIPPED/FAILED로 완주) + SSE 진행보고(느려도 멈춘 게 아님을 표시), 이 4가지를 한 흐름으로 묶어 말해보자.
+:::details 훈련 2 — 영역 간 흐름 한 바퀴
+A#1의 출력이 어느 영역 몇 번 기능의 입력이 되는지, C#12가 받는 두 입력의 출처(A·B), D#22가 갈라지는 세 방향(리포트·E·C), F#31이 D로 순환하는 이유 — 이 네 가지를 막힘없이 말해보자.
 :::
 
 ## 퀴즈
 
-<QuizBox question="CareerTuner AI에서 structured output(구조화 출력)을 쓰는 가장 큰 이유는?" :choices="['LLM 호출 비용을 줄이려고', 'LLM 응답을 고정 JSON 스키마로 받아 DB 컬럼과 안정적으로 매핑하려고', '응답 속도를 높이려고', '여러 LLM을 동시에 호출하려고']" :answer="1" explanation="OpenAiResponsesClient는 요청에 JSON 스키마를 함께 보내 모델이 그 형식으로만 답하게 강제합니다. 그래야 파싱 실패·필드 누락 없이 fit_analysis 같은 테이블 컬럼과 1:1로 매핑됩니다." />
+<QuizBox question="CareerTuner의 AI 34개는 어떻게 조직되어 있나?" :choices="['하나의 거대 모델이 모든 기능을 처리한다', '6개 영역(A~F)이 AI 번호를 수직 분담하고, 한 영역의 출력이 다음 영역의 입력이 된다', '34개가 서로 독립적이라 순서가 없다', '프론트엔드에서만 호출되는 외부 API다']" :answer="1" explanation="34개 AI는 A(#1-5)·B(#6-11)·C(#12-18)·D(#19-23)·E(#24-28)·F(#29-34)로 수직 분담되고, 데이터 의존으로 연결됩니다. A·B가 입력을 만들고 C가 비교 허브, D가 질문, E가 첨삭, F가 순환합니다." />
 
-<QuizBox question="AutoPrepOrchestrator에서 FIT(적합도)와 INTERVIEW(면접) 단계가 JOB(공고 분석) 단계 뒤에 실행되는 이유는?" :choices="['알파벳 순서라서', '적합도·면접 분석이 공고 분석 결과를 입력으로 필요로 하는 의존관계라서', '비용을 아끼려고 순차 실행해서', 'SSE 전송 순서를 맞추려고']" :answer="1" explanation="DEPS 맵에 FIT→[JOB], INTERVIEW→[JOB]로 의존이 정의돼 있습니다. 독립 단계는 CompletableFuture로 동시 출발하지만, FIT·INTERVIEW는 JOB의 future가 끝난 뒤 thenRunAsync로 시작합니다." />
+<QuizBox question="C의 #12(공고-스펙 적합도)가 직접 입력으로 받는 것은?" :choices="['공고 원문과 OCR 텍스트', 'A 프로필 스냅샷과 B의 필수/우대 조건(#7/#8)', 'D의 면접 답변 평가', 'F의 실제 면접질문']" :answer="1" explanation="#12는 A와 B가 만나는 비교 허브입니다. A 프로필 스냅샷과 B의 #7/#8(필수/우대)을 받아 점수·근거를 내고, 그 결과는 다시 D#19 질문 생성의 입력이 됩니다. 점수 자체는 LLM이 아니라 서버 규칙엔진이 확정합니다." />
 
-<QuizBox question="면접관이 '자체 LLM으로 이미 서비스 중인가요?'라고 물으면 정직하게 어떻게 답해야 하나? 모범답안을 말해보라." explanation="운영 기본 경로는 OpenAI이고, 자체 SLM(Qwen/Gemma 베이스를 LoRA로 파인튜닝)으로 대체하는 학습·평가 파이프라인을 ml/career-strategy-llm에서 연구·구축 중이라고 답합니다. 백엔드 폴백 체인(FallbackFitAnalysisAiService)에는 OssFitAnalysisAiService로 연동 자리만 미리 잡아둔 상태이며, provider=oss로 명시 설정해야 자체모델이 시도된다고 구현 단계를 정확히 구분해 설명합니다." />
+<QuizBox question="AutoPrep 오케스트레이터가 코드로 강제하는 파트 의존을 옳게 설명한 것은?" :choices="['34개 기능을 모두 순서대로 직렬 실행한다', 'FIT(C)과 INTERVIEW(D)만 JOB(B) 뒤에 실행하고 나머지는 동시 출발한다', '모든 파트가 PROFILE(A)을 기다린다', '의존이 없어 전부 동시에 실행한다']" :answer="1" explanation="DEPS는 FIT→[JOB], INTERVIEW→[JOB] 두 줄뿐입니다. PROFILE·JOB·WRITE·COMMUNITY는 독립이라 동시 출발하고, FIT·INTERVIEW만 JOB 완료 후 thenRunAsync로 시작합니다. 오케스트레이터는 새 AI를 만들지 않고 각 영역 서비스를 래핑합니다." />
+
+<QuizBox question="F 영역의 어느 AI 기능이 사용자 여정 바깥에서 D(면접)로 데이터를 순환시키며, 그게 왜 중요한지 설명해 보세요." explanation="F#31(실제 면접질문 추출)입니다. 커뮤니티 후기·댓글에서 실제로 나온 질문을 뽑아 D의 예상질문(#19)을 보강합니다. 단방향 여정(A→B→C→D→E)만 보면 F는 끝단처럼 보이지만, #31은 다른 지원자의 실데이터가 다시 준비 흐름으로 돌아오는 두 번째 순환 고리를 만듭니다. 또 하나의 순환은 D#22 평가와 E 결과가 C#16(장기 경향)으로 되돌아가는 것입니다." />

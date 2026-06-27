@@ -1,282 +1,157 @@
-# 영역 B 개요 — 지원 건·공고·기업 분석
+# 영역 B 개요 — 지원건·공고·기업분석 (AI #6-11)
 
-> 영역 B는 CareerTuner의 **데이터 중추**다. 핵심 단위는 공고가 아니라 **지원 건(Application Case)**이고, 그 아래에 공고 원문·공고 분석·기업 분석이 매달린다. B의 철학은 한 줄로 요약된다 — **"공고를 통째로 생성형으로 대체하지 않는다. 공고 텍스트를 문장 단위로 쪼개 필수/우대/담당업무/기술스택으로 분류하는 *구조화 추출*이 본질이다."**
+> 영역 B는 "**이 공고가 무엇을 요구하는가**"를 기계가 읽을 수 있는 구조로 바꾸는 영역이다. 사용자가 올린 공고 원문(텍스트·PDF·URL)을 추출·저장하고, LLM으로 필수/우대 조건·담당 업무·기업 현황·면접 포인트를 구조화해, 그 결과를 C·D·E가 읽기 전용으로 가져다 쓰게 만든다. 핵심 단위는 공고가 아니라 **지원 건(Application Case)** 이다.
+
+상단 길잡이: [영역별 심화 전체 개요](/areas/) · 인접 영역 [영역 A 개요](/area-a/) · [영역 C 개요](/area-c/) · 전체 그림 [전체 흐름](/flow/) · [AI #1-34 맵](/flow/ai-function-map)
 
 ---
 
-## 1. 영역 B의 정체성 — 한 문장으로
+## 1. 이 영역이 책임지는 것 — 정체성
 
-영역 B는 **"이 공고가 무엇을 요구하는가"를 구조화된 데이터로 만들어, 나머지 모든 영역이 소비할 수 있게 공급하는 영역**이다. 사용자가 채용공고를 던지면, B가 그것을 OCR·추출하고, 문장을 분류하고, 필수/우대/담당업무/기업 현황으로 쪼개어 저장한다.
+영역 B를 한 문장으로 정의하면 이렇다.
 
-CareerTuner 전체에서 가장 먼저 짚어야 할 사실은 이것이다 — **핵심 도메인 루트는 공고(job posting)가 아니라 지원 건(`application_case`)이다.** 같은 회사 같은 직무라도 내가 두 번 지원하면 지원 건은 둘이고, 공고 원문·분석·추출 잡은 전부 그 지원 건에 종속된다.
+> **B는 "지원 건(Application Case)"을 도메인 루트로 삼아, 공고 원문을 수집·저장하고 LLM으로 구조화해 다른 영역이 읽을 수 있는 분석 데이터로 가공하는 영역이다.**
 
-| B가 소유하는 것 | 테이블 | 역할 |
-| --- | --- | --- |
-| **지원 건(루트)** | `application_case` | 모든 산출물이 매달리는 트리의 뿌리 |
-| **공고 원문** | `job_posting` | 사용자가 올린 원문, revision append-only(불변) |
-| **공고 분석** | `job_analysis` | 필수/우대/담당업무/난이도 (AI #6~9) |
-| **기업 분석** | `company_analysis` | 검증된 사실 vs AI 추론 + 면접 포인트 (AI #10~11) |
-| **추출 잡** | `application_case_extraction` | 비동기 OCR/추출 상태기계 |
+여기서 두 가지가 정체성을 가른다.
 
-모든 산출물에 대해 **출처(source)·버전(revision)·사용자 확인 상태(confirmed/checked)**를 함께 관리하는 것이 B의 책임이다.
+- **단위가 "공고"가 아니라 "지원 건"이다.** 같은 채용공고라도 사람마다·시점마다 분석·전략·면접 준비가 다르다. 그래서 공고 원문·공고 분석·기업 분석·추출 잡이 모두 하나의 `application_case`에 매달려 함께 생기고 함께 정리된다. 이것을 DB로 강제한 것이 자식 테이블의 `application_case_id` FK + `ON DELETE CASCADE`다.
+- **B는 "텍스트를 구조로 바꾸는" 변환 계층이다.** 사람이 읽는 공고문은 길고 산만하다. B는 이것을 `required_skills`/`preferred_skills`/`duties` 같은 **배열·필드**로 쪼개, 점수 계산(C)·질문 생성(D)·첨삭(E)이 곧바로 입력으로 쓸 수 있는 형태로 만든다.
+
+그래서 B의 출력 품질은 그대로 하류 영역의 품질이 된다. 필수/우대 조건 추출이 부정확하면 C의 적합도 점수가 흔들리고, 담당 업무 요약이 빈약하면 D의 면접 질문이 얕아진다.
 
 :::tip 이 페이지가 답하는 면접 질문
-"영역 B가 정확히 뭘 하는 거예요?" / "공고가 아니라 지원 건이 핵심이라는 게 무슨 뜻이죠?" / "B에서 나온 데이터가 다른 기능으로 어떻게 흘러가나요?"
-이 개요만 막힘없이 말할 수 있으면, 세부 페이지는 디테일을 채우는 역할이다.
+"영역 B가 정확히 뭘 하나요?" / "공고를 어떻게 저장하고, 바뀌면 어떻게 되나요?" / "B가 만든 데이터를 누가 쓰나요?" — 이 개요를 막힘없이 말할 수 있으면, 세부 페이지는 디테일을 채우는 역할이다.
 :::
 
 ---
 
-## 2. 핵심 철학 — "생성"이 아니라 "구조화 추출"
+## 2. 6개 영역 속에서 B의 위치
 
-### 한 줄 정의
+CareerTuner는 6명이 한 지원 건을 **수직 분담**으로 함께 채운다. A~F 여섯 영역과 각자의 AI 번호는 다음과 같다.
 
-> **공고문 전체를 한 번에 LLM으로 다시 써내지 않는다. 원문에서 *근거를 인용하며* 조건을 뽑아낸다.**
+| 영역 | 책임 범위 | AI 번호 | 대표 산출물 | 개요 |
+| --- | --- | --- | --- | --- |
+| A | 회원·프로필·인증 | #1~5 | 프로필 요약·기술스택·완성도 | [/area-a/](/area-a/) |
+| **B** | **지원건·공고·기업분석** | **#6~11** | **공고 구조화·필수/우대·면접포인트** | **현재 페이지** |
+| C | 적합도·전략·대시보드 | #12~18 | 적합도 점수+근거+다음행동 | [/area-c/](/area-c/) |
+| D | 가상 면접·리포트 | #19~23 | 예상질문·답변평가·리포트 | [/area-d/](/area-d/) |
+| E | 첨삭·결제·크레딧 | #24~28 | 원문 비수정 개선안·요금추천 | [/area-e/](/area-e/) |
+| F | 커뮤니티·고객센터·챗봇 | #29~34 | 후기요약·실제질문·문의초안 | [/area-f/](/area-f/) |
 
-가장 흔한 오해는 "AI가 공고를 읽고 멋진 요약을 생성한다"는 그림이다. B는 그 반대 방향으로 설계됐다. OCR은 입력 텍스트를 확보하는 단계일 뿐이고, B의 본질은 **OCR 이후 문장 분류와 조건 추출**이다.
+### 데이터가 어디서 와서 어디로 가나
 
-이 철학이 런타임에서 두 클래스로 구현된다.
-
-| 단계 | 클래스 | 하는 일 |
-| --- | --- | --- |
-| 전처리(분류) | `BJobSentenceClassifier` | 공고를 줄/문장 단위로 쪼개 11라벨(REQUIRED/PREFERRED/RESPONSIBILITY/TECH_STACK …)을 규칙·키워드로 부착 |
-| 추출(엔진) | `BAnalysisGenerationService` | 분류 신호 + 원문을 LLM에 넣어 구조화 JSON을 받고, **원문에 실제로 등장하는지 검증**하고, 실패 시 규칙엔진으로 폴백 |
-
-핵심은 **환각 방지**다. 추출한 스킬이 실제 공고 원문에 토큰으로 등장하는지 검증(`validateGrounding`)하고, grounded 비율이 임계값(`groundingThreshold` 기본 0.6) 미만이면 예외를 던져 규칙 폴백으로 떨어뜨린다. "근거 기반"이라는 말이 코드로 보증되는 것이다.
-
-자세히: [공고 분석 (필수/우대/담당업무)](/area-b/job-analysis) · [환각 방지 3중 방어](/ai/hallucination)
-
----
-
-## 3. 담당 AI 기능 #6~#11
-
-영역 B는 6개의 AI 기능을 소유한다. 놀랍게도 이 6개는 **단 2번의 LLM 호출**로 산출된다 — `generateJobAnalysis`(#6~9) + `generateCompanyAnalysis`(#10~11). 그 앞단에 OCR/추출과 메타데이터 추출(회사명·직무명·마감일 프리필)이 붙는다.
-
-| # | 기능 | 한 줄 설명 | 주요 산출물 |
-| --- | --- | --- | --- |
-| 6 | 공고문 AI 분석 | 공고 전체를 구조화 분석 | `summary`, `difficulty`, `experienceLevel` |
-| 7 | 필수 조건 추출 | 반드시 갖춰야 할 역량 | `required_skills`(JSON 배열) |
-| 8 | 우대 조건 추출 | 있으면 좋은 역량 | `preferred_skills`(JSON 배열) |
-| 9 | 담당업무 요약 | 입사 후 할 일 | `duties`, `qualifications` |
-| 10 | 기업 현황 AI 요약 | **사실 vs 추론 분리** | `verified_facts`, `ai_inferences` |
-| 11 | 면접 포인트 추출 | 면접에서 물어볼 만한 지점 | `interview_points` |
-
-모든 #6~11이 공유하는 엔진 패턴은 하나다 — **로컬 LLM 우선 → 실패 시 `self-rules-v1` 결정론 규칙엔진 폴백.**
+B는 흐름의 **앞단 입력 생성자**다. A가 만든 사람 데이터와 만나, C·D·E가 소비할 공고 데이터를 만든다.
 
 ```text
-입력(공고 텍스트 + 분류 신호)
-   │
-   ▼
-[BLocalLlmClient.chat]  Ollama /api/chat
-   ├─ JSON Schema 강제(format), temperature=0, think=false
-   ├─ 모델 careertuner-b-jobposting-r1 (파인튜닝 R1)
-   │
-   ├─ 성공 → 소형모델 결함 후처리 → grounding 검증
-   │           (경력/스킬/업무문장 혼입 교정)
-   │            └─ 통과 → 저장
-   │            └─ 실패 → ▼
-   └─ 실패/검증탈락 → selfRules 규칙엔진(결정론) → 저장
+        [A user_profile]                         (읽기 전용 참조)
+              │ 스펙 원천(읽기 전용)
+              ▼
+   ┌───────────────────────── 영역 B (소유·쓰기) ─────────────────────────┐
+   │  application_case (루트) · job_posting(revision) ·                     │
+   │  job_analysis(#6~9) · company_analysis(#10~11) ·                       │
+   │  application_case_extraction(추출 큐)                                   │
+   └───────────────┬───────────────────────────────────────────────────────┘
+                   │ job_analysis · company_analysis = 읽기 전용 참조
+        ┌──────────┼─────────────────┬──────────────────┐
+        ▼          ▼                 ▼                  ▼
+   C 적합도    D 면접 질문        E 첨삭             (분석 시점 revision 동결)
+   (필수/우대  (담당업무·         (공고 맥락
+    채점기준)   면접포인트 입력)    참조)
 ```
 
-:::warning 소형모델 결함 후처리 — 설계의 백미
-작은 파인튜닝 R1 모델은 알려진 오류가 있다. B는 그걸 결정론 코드로 교정한다.
-- `reconcileExperienceLevel`: "경력 5년↑"을 JUNIOR로 오분류 → 정규식으로 연차를 파싱해 보정
-- `filterSkillItems`: "결제 시스템 백엔드 API 설계 및 개발" 같은 **업무 문장**이 스킬에 섞임 → 길이·단어수·패턴으로 제거
-- `validateGrounding`: 추출 스킬이 원문에 없으면 폴백
+- **B가 읽어 오는 것(원천, 읽기 전용):** A의 `user_profile` 등 사람 데이터는 B가 직접 수정하지 않는다. B는 공고 쪽 데이터만 소유한다.
+- **B가 소유(쓰기)하는 것:** `application_case`·`job_posting`·`job_analysis`·`company_analysis`·`application_case_extraction`.
+- **B의 출력을 읽는 곳:** C(필수/우대를 적합도 채점 기준으로), D(담당 업무·면접 포인트를 질문 입력으로), E(공고 맥락을 첨삭 참조로). 이들은 모두 **B 원본을 수정하지 않고 읽기만** 한다.
 
-"왜 작은 모델을 쓰면서 품질을 유지하나?"의 답이 바로 이 후처리다.
+:::tip 읽기전용 경계 한 문장
+"B는 공고·기업 분석의 **단일 쓰기 책임자**이고, C·D·E는 B 분석의 **읽기 소비자**입니다. 그래서 '이 공고가 뭘 요구하는지'에 대한 정합성 책임이 한 곳으로 모입니다."
 :::
 
-자세히: [자체 LLM 전략](/ai/self-llm-strategy) · [프롬프트 카탈로그](/ai/prompt-catalog) · [공고 텍스트 추출·OCR](/ai/job-posting-extraction)
+전체 의존 그래프에서 B의 출력이 누구의 입력이 되는지는 [AI #1-34 맵](/flow/ai-function-map)과 [데이터 소유권](/flow/data-ownership)에서 영역 간 화살표로 본다. 지원 건이라는 단위 자체는 [사용자 여정](/flow/user-journey) 흐름과 함께 보면 이해가 빠르다.
 
 ---
 
-## 4. 데이터가 C·D·E로 흐르는 경계 — 출력 계약
+## 3. 담당 AI 기능 #6~11
 
-B가 데이터 중추인 이유는, B의 산출물이 **다른 영역의 입력 계약**이기 때문이다. B는 데이터를 만들고, C·D·E는 그것을 소비한다.
+B는 6개의 AI 기능을 소유한다. 주의할 점은 이들이 **6번의 LLM 호출로 흩어져 있지 않다**는 것이다. #6~9는 공고 분석 한 번에 묶여 함께 나오고, #10~11은 기업 분석 호출에서 함께 나온다.
 
-```text
-        ┌─────────────  영역 A (프로필)  ─────────────┐
-        │  B는 A를 읽기만, 수정 금지                   │
-        ▼                                              ▼
-┌──────────────────  영역 B  ──────────────────┐
-│  job_analysis: required_skills / preferred_skills / duties
-│  company_analysis: verified_facts / interview_points
-└───────┬───────────────┬───────────────┬──────────────┘
-        │ (필수/우대/업무) │ (면접 포인트) │ (공고·기업 분석)
-        ▼               ▼               ▼
-   ┌─────────┐    ┌─────────┐     ┌─────────┐
-   │ C 적합도 │    │ D 면접   │     │ E 첨삭   │
-   └─────────┘    └─────────┘     └─────────┘
-   fit_analysis    면접 질문        첨삭 맥락
-   (C 소유)         생성             참조
-```
+| # | 기능 | 한 줄 설명 | 산출물 / 저장 위치 | 세부 페이지 |
+| --- | --- | --- | --- | --- |
+| 6 | 공고문 구조화 분석 | 공고 원문을 통째 생성하지 않고 문장을 라벨링→JSON Schema로 채움 | `job_analysis` 행 | [공고문 AI 분석](/area-b/job-analysis) |
+| 7 | 필수 조건 추출 | "반드시 충족" 역량을 별도 배열로 분리 | `required_skills` (JSON) | [필수·우대 조건](/area-b/required-preferred) |
+| 8 | 우대 조건 추출 | "있으면 가산" 역량을 별도 배열로 분리 | `preferred_skills` (JSON) | [필수·우대 조건](/area-b/required-preferred) |
+| 9 | 담당 업무 요약 | 산만한 업무 설명을 짧은 텍스트로 정제 | `job_analysis.duties` | [담당 업무 요약](/area-b/duties-summary) |
+| 10 | 기업 현황 요약 | 공고 한 장으로 사업·산업·이슈 요약, 사실/추론 분리 | `company_analysis` 행 | [기업 현황 요약](/area-b/company-analysis) |
+| 11 | 면접 포인트 추출 | 공고+기업분석을 묶어 면접 검증 포인트 생성 | `company_analysis.interview_points` | [면접 포인트](/area-b/interview-points) |
 
-| 흐름 | B가 공급하는 것 | 소비처 | 상태 |
-| --- | --- | --- | --- |
-| B → C | `required_skills`/`preferred_skills`/`duties` | 적합도 판정 기준 | **구현** |
-| B → D | (설계) `interview_points` / 기업 현황 | 면접 질문 입력 | **부분/간접** ⚠️ |
-| B → E | 공고·기업 분석 전체 | 첨삭 맥락 참조 | 설계 |
+:::warning 호출 단위와 "구현됨 vs 계획"을 정직하게
+- **#7·#8·#9는 #6 한 번의 호출(`generateJobAnalysis`)에서 함께 나오는 필드**다. 독립 엔드포인트로 6번 부르는 구조가 아니다.
+- **#11(면접 포인트)이 D(면접 질문)의 입력으로 직접 들어가는지는 계획과 구현이 갈린다.** 데이터는 `company_analysis.interview_points`에 저장되지만, D가 이를 직접 소비하는 배선은 페이지 단위로 정직하게 구분해 설명한다. "B 면접포인트가 D로 자동으로 흐른다"고 단정하기 전에 [면접 포인트](/area-b/interview-points) 페이지의 구현 상태를 확인하라.
 
-:::warning ★정직한 갭 — #11 면접 포인트와 D의 연결
-설계상 #11 `interview_points`는 D 면접 질문 생성의 입력이어야 한다. **하지만 실측하면 자동 파이프라인의 D 질문 생성(`createInterviewPrep`)은 `interview_points`를 직접 소비하지 않는다.** 대신 `job_analysis`의 required/preferred 스킬 + 케이스 회사/직무명으로 **하드코딩 템플릿 6문항**을 만든다.
-
-즉 #11 산출물은 "사용자에게 보여줄 기업 분석 카드"로는 저장되지만, D 질문 생성과는 **스킬을 경유한 간접 연결**뿐이다. 면접에서 이 갭을 정직하게 말할 수 있어야 한다 — "계획은 직접 입력, 현재 구현은 스킬 기반 템플릿"이라고.
+AI 제공자는 공통 폴백 체계를 따른다(자체 OSS → Anthropic Haiku `claude-haiku-4-5` → OpenAI `gpt-5` → Mock). 키 미발급 환경에서는 Mock/규칙 기반 결과로 결정론적으로 동작한다. 폴백 공통 원리는 [AI 오케스트레이터](/flow/ai-orchestrator)를 참고.
 :::
 
-자세히: [영역 C — 적합도·전략](/area-c/) · [면접 포인트 추출](/area-b/interview-points)
+---
+
+## 4. 권장 학습 순서
+
+B는 "입력을 어떻게 받고 저장하나 → LLM으로 어떻게 구조화하나 → 화면·운영"의 순서로 보면 의존관계가 자연스럽게 풀린다. 아래 하위 페이지들을 4개 묶음으로 안내한다.
+
+**1단계 — 도메인의 뼈대 (지원 건·공고 저장)**
+공고가 어떻게 들어오고, 바뀌면 어떻게 보존되는지부터 잡는다.
+1. [지원 건 생명주기](/area-b/application-lifecycle) — `DRAFT → ANALYZING → READY → APPLIED → CLOSED` 상태머신. 모든 것의 루트.
+2. [공고 원문 저장 · revision](/area-b/job-posting-storage) — 덮어쓰지 않고 버전을 쌓는 append-only 설계.
+3. [데이터 모델 · revision 정합성](/area-b/data-model) — 지원 건 트리 + CASCADE, 분석 시점 revision 동결.
+
+**2단계 — 입력 텍스트 만들기 (추출 파이프라인)**
+LLM에 넣을 "입력 텍스트"를 어떻게 안전하게 뽑아내는지.
+4. [텍스트 추출 — PDFBox · Jsoup · OCR · SSRF](/area-b/text-extraction-ocr) — PDF 직독, URL 크롤, 스캔본 OCR 폴백, SSRF 방어.
+5. [공고 추출 워커 — Python 분리](/area-b/ml-worker) — OCR 의존성을 JVM 밖 별도 Python 프로세스로 떼어낸 이유.
+
+**3단계 — AI 구조화 (B의 핵심 기능 #6~11)**
+텍스트를 점수·질문이 바로 쓸 수 있는 구조로 바꾸는 단계.
+6. [공고문 AI 분석 #6](/area-b/job-analysis) — 라벨링 + JSON Schema + 환각 후처리 파이프라인.
+7. [필수·우대 조건 #7·#8](/area-b/required-preferred) — 두 배열 분리 추출. C 적합도의 채점 기준.
+8. [담당 업무 요약 #9](/area-b/duties-summary) — `duties` 필드 정제.
+9. [기업 현황 요약 #10](/area-b/company-analysis) — 검증된 사실 vs AI 추론 컬럼 분리.
+10. [면접 포인트 #11](/area-b/interview-points) — 면접 검증 포인트, D 연결의 계획/구현 구분.
+11. [구조화 추출 · 프롬프트 카탈로그](/area-b/structured-output) — JSON Schema 강제와 프롬프트 카탈로그.
+
+**4단계 — 화면·운영·면접 정리**
+사용자/관리자 화면과 종합 답안집.
+12. [프론트엔드 UI/UX](/area-b/frontend-ui) — 탭별 페치, 백엔드 자동 파이프라인 트리거.
+13. [관리자 화면 & 운영](/area-b/admin) — 읽기·검수·신선도·실패 추적.
+14. [영역 B 면접 플레이북](/area-b/interview-playbook) — B 전체를 1분/3분 답변으로 압축.
+
+곁다리로 전체 그림이 궁금하면 [아키텍처](/flow/architecture) · [AI 오케스트레이터](/flow/ai-orchestrator)를, 다른 영역과의 연결은 [영역 C 개요](/area-c/)(적합도가 B 필수/우대를 어떻게 소비하는지)와 [데이터 소유권](/flow/data-ownership)을 함께 보면 좋다.
 
 ---
 
-## 5. 두 진입 경로 — 둘 다 같은 엔진으로 수렴
+## 5. 이 영역 단골 면접 질문 5개
 
-B 분석이 실행되는 방법은 둘인데, 둘 다 결국 `BAnalysisGenerationService`라는 한 엔진을 부른다.
+B를 물어볼 때 반복되는 다섯 질문과 핵심 답의 방향이다. 상세 모범답안은 각 세부 페이지와 [면접 플레이북](/area-b/interview-playbook)에 있다.
 
-### 5.1 비동기 자동 파이프라인 (주 경로)
+**Q1. 왜 "공고"가 아니라 "지원 건"이 루트인가요?**
+같은 공고라도 사람마다·시점마다 분석·전략·면접 준비가 다르기 때문입니다. 그래서 공고 원문·분석·추출이 전부 하나의 `application_case`에 매달려 함께 생기고 함께 삭제됩니다. 이걸 DB로 강제한 게 자식 테이블의 `application_case_id` FK + `ON DELETE CASCADE`입니다.
 
-```text
-공고 등록 → 추출 큐 적재 → 스케줄러 워커가 텍스트 추출 + 품질게이트
-   │
-   └─ PASS → ApplicationCaseAutoPipelineService.runAfterExtractionPass()
-              한 트랜잭션에서:
-              ① B 공고 분석   generateJobAnalysis
-              ② B 기업 분석   generateCompanyAnalysis
-              ③ C 적합도      createFitAnalysis
-              ④ D 면접 질문   createInterviewPrep
-```
+**Q2. 공고가 수정되면 이전 분석은 어떻게 되나요? 덮어쓰나요?**
+덮어쓰지 않습니다. `job_posting`은 **append-only**라서, 공고가 바뀌면 같은 케이스 안에서 `revision`을 올려 새 행으로 INSERT합니다. 그리고 분석은 생성 시점에 본 공고의 `job_posting_id`와 `job_posting_revision`을 함께 저장(동결)합니다. 덕분에 "이 분석은 어느 버전 기준인지"를 재현할 수 있고, 최신 revision과 비교해 stale(낡음) 판정도 가능합니다.
 
-프런트엔드의 핵심 설계 원칙도 여기서 나온다 — **분석 실행의 단일 진실원은 백엔드 자동 파이프라인이다.** 프런트는 `createJobAnalysis`를 직접 호출하지 않고, 추출/검수 통과를 **트리거로만** 사용한다.
+**Q3. 공고 텍스트는 어떻게 추출하나요? PDF·URL·이미지를 다 받는데요.**
+입력 종류별로 경로가 다릅니다. PDF는 PDFBox로 직접 읽고, URL은 직접 HTTP + Jsoup으로 본문을 긁고, 이미지/스캔 PDF만 OCR로 폴백합니다. URL 추출 경로 전체는 SSRF(내부망 요청 위조)로부터 방어합니다. 그리고 무거운 OCR 의존성은 JVM이 아니라 별도 Python 워커(`POST /extract/job-posting`)로 떼어냈습니다.
 
-### 5.2 동기 단건 재생성
+**Q4. LLM이 공고를 분석할 때 환각으로 없는 조건을 만들지 않나요?**
+세 층으로 막습니다. (1) **데이터 모델** — 기업 분석은 `verified_facts`(검증된 사실)와 `ai_inferences`(AI 추론)를 컬럼 단위로 분리해 추론이 사실로 보이지 않게 합니다. (2) **프롬프트** — 공고를 통째 생성하는 게 아니라 문장을 라벨링한 뒤 JSON Schema에 맞춰 채우게 합니다. (3) **후처리** — 코드가 환각·오분류를 깎아내고 사용자 확정 단계를 둡니다.
 
-`POST /job-analysis`, `POST /company-analysis` → `JobAnalysisService`/`CompanyAnalysisService`가 같은 엔진을 직접 호출. 사용자가 "다시 분석" 버튼을 눌렀을 때의 경로다.
-
-:::tip "AI는 트랜잭션 밖" — 핵심 동시성 패턴
-LLM 호출은 최대 5분 걸린다. 그 동안 DB 커넥션을 잡고 있으면 커넥션 풀이 고갈된다. 그래서 B는 **LLM 응답을 받은 뒤에만** `TransactionTemplate`으로 INSERT + 상태전이 + 로그를 한 트랜잭션에 묶는다. 실패하면 `restorePreviousStatus`로 롤백한다.
-:::
-
-자세히: [지원 건 생애주기](/area-b/application-lifecycle) · [ML 워커·비동기 큐](/area-b/ml-worker)
-
----
-
-## 6. 영역 B의 시그니처 3대 설계
-
-면접에서 B를 한 번에 설명하려면 이 세 가지를 말하면 된다.
-
-### 6.1 공고 revision append-only + 분석 시 revision 동결
-`job_posting`은 **UPDATE 메서드가 없다.** 공고를 고치면 새 revision으로 INSERT만 한다(`UNIQUE(application_case_id, revision)`). 분석할 때는 `job_posting_id`+`job_posting_revision`을 분석 시점에 **동결**한다. 덕분에 "이 분석이 어느 원문 버전 기준인지"를 못 박아 **재현성**과 **stale 판정**(공고가 바뀌면 "이전 공고 rev" 배지)을 가능케 한다. 원문이 삭제돼도 `ON DELETE SET NULL`로 분석은 보존된다.
-
-### 6.2 기업 분석 사실/추론 분리 (환각 3중 방어)
-`company_analysis`는 `verified_facts`와 `ai_inferences`를 **별도 JSON 컬럼**으로 분리한다. LLM 환각이 "검증된 사실"로 사용자에게 보이면 취업 의사결정을 왜곡하므로, **데이터 모델(별 컬럼) + 프롬프트(외부조회 금지) + 검증(원문 토큰 매칭)** 세 층에서 방어한다. 프런트도 "검증된 사실 vs AI 추론" 2분할 UI로 이를 그대로 보여준다.
-
-### 6.3 추출 동시 실행 1건 강제
-`application_case_extraction`은 생성(가상) 컬럼 `active_status_marker` + `UNIQUE(application_case_id, active_status_marker)`로 **케이스당 동시 진행 1건**을 DB 레벨에서 강제한다. 같은 공고에 OCR이 중복 실행돼 토큰·비용을 낭비하는 걸 원천 차단한다.
-
-자세히: [공고 저장·revision](/area-b/job-posting-storage) · [기업 분석](/area-b/company-analysis) · [데이터 모델](/area-b/data-model)
-
----
-
-## 7. 현재 런타임 vs 설계서 — 시점이 갈린다 (정직하게)
-
-영역 B에는 **시기가 다른 두 1차 자료**가 공존한다. 면접에서 헷갈리지 않으려면 이 갈림을 알아야 한다.
-
-| | 클래스 설계서(과거 진실) | 현재 런타임(현재 진실) |
-| --- | --- | --- |
-| LLM 경로 | OpenAI 단일 직결(기본 `gpt-5`) | **자체 호스팅 Ollama R1** + `self-rules-v1` 폴백 |
-| 근거 | 설계 문서 | `application.yaml:125` `B_ANALYSIS_LOCAL_LLM_ENABLED:true`(코드 확인) |
-| 시점 | 서브모듈이 과거 커밋 고정 | "B파트 자체 모델 1개로 통합" 커밋 이후 |
-
-**결론:** 설계서가 묘사하는 "OpenAI 직결" 시대는 이미 지나갔다. 그 증거가 코드에 그대로 있다.
-
-| 항목 | 상태 | 근거 |
-| --- | --- | --- |
-| 로컬 LLM(Ollama R1) 공고/기업 분석 | **구현·기본 ON** | `application.yaml:125`, `BLocalLlmClient` |
-| `self-rules-v1` 규칙 폴백 | **구현** | `BAnalysisGenerationService` |
-| LLM 출력 보정(연차/스킬/grounding) | **구현** | `reconcileExperienceLevel`/`filterSkillItems`/`validateGrounding` |
-| URL SSRF 방어 | **구현(견고)** | `JobPostingTextExtractor`(사설/메타데이터 IP 차단) |
-| PDF 텍스트 추출 | **구현** | Apache PDFBox `PDFTextStripper` |
-| OpenAI OCR 폴백 | **구현됐으나 기본 OFF** | `application.yaml:86` `false`, allowlist 필요 |
-| Python AI 워커(PaddleOCR) | **구현됐으나 기본 OFF** | `application.yaml` `ai-worker.enabled:false` |
-| `jobanalysis/ai`(OpenAI/OSS provider 추상화) | **죽은 코드(미배선)** | 외부 참조 0건(Grep 재확인) |
-| #11 `interview_points` → D 직접 입력 | **부분/간접** | 자동 파이프라인은 스킬 기반 템플릿 사용 |
-| KLUE-RoBERTa 문장 분류 모델 | **계획**(현재는 규칙 기반) | 런타임은 `BJobSentenceClassifier`(규칙) |
-
-:::warning 인용 시 주의값 3가지
-1. 프롬프트 버전은 런타임 `b-v1`이 정답이다(코드 확인). 스토리보드의 "b-v3.2"는 `VITE_USE_MOCK` 데모 빌드 값이라 인용 금지.
-2. 스토리보드 캡처 수치는 mock 데모라 실제 값이 아니다.
-3. `local-llm.enabled`는 Java 기본값 false / yaml 오버라이드 true라 **"실행 기본 ON"이 정답**이다.
-:::
-
-자세히: [구현 상태·죽은 코드](/area-b/structured-output) · [자체 LLM 전략](/ai/self-llm-strategy)
-
----
-
-## 8. 권장 학습 순서
-
-처음부터 끝까지 한 흐름으로 읽으면 면접 답변이 자연스럽게 이어진다.
-
-**1단계 — 도메인의 뼈대**
-1. [지원 건 생애주기](/area-b/application-lifecycle) — 왜 공고가 아니라 지원 건인가, 상태머신
-2. [데이터 모델](/area-b/data-model) — 소유 테이블 6종 + 트리 + CASCADE
-3. [공고 저장·revision](/area-b/job-posting-storage) — append-only, 분석 시 동결
-
-**2단계 — 입력 확보**
-4. [텍스트 추출·OCR](/area-b/text-extraction-ocr) — PDF/OCR/URL(SSRF 방어), 품질 게이트
-5. [ML 워커·비동기 큐](/area-b/ml-worker) — 스케줄러, 가상컬럼 유니크, 점유
-
-**3단계 — AI 분석 (B의 핵심)**
-6. [공고 분석](/area-b/job-analysis) — #6, 문장 분류, 소형모델 후처리
-7. [필수·우대 추출](/area-b/required-preferred) — #7#8, KNOWN_SKILLS, grounding
-8. [담당업무 요약](/area-b/duties-summary) — #9
-9. [기업 분석](/area-b/company-analysis) — #10, 사실/추론 분리
-10. [면접 포인트](/area-b/interview-points) — #11, D와의 갭
-11. [구조화 출력](/area-b/structured-output) — JSON Schema 강제, 검증
-
-**4단계 — 화면과 운영**
-12. [프론트엔드 UI](/area-b/frontend-ui) — 패널 4종, stale 추적, 전역 모니터
-13. [관리자 화면](/area-b/admin) — 검수·메타데이터·AI 사용량
-14. [면접 플레이북](/area-b/interview-playbook) — 종합 정리
-
-연관: [환각 방지](/ai/hallucination) · [폴백 전략](/ai/fallback) · [AI 사용량·크레딧](/ai/ai-usage-credit) · [JWT 보안](/backend/jwt-security)
-
----
-
-## 9. B 면접 단골질문 5개 (요약 답안)
-
-1. **왜 공고가 아니라 '지원 건'이 핵심 단위인가요?**
-   같은 공고에 여러 번 지원하거나 여러 사람이 지원할 수 있고, 공고 원문·분석·추출은 모두 한 번의 지원 맥락에 종속됩니다. 그래서 `application_case`를 트리의 루트로 두고 모든 산출물을 CASCADE로 함께 정리합니다.
-
-2. **AI가 공고를 그냥 요약하는 거 아닌가요?**
-   아닙니다. 통째로 생성하지 않고, 원문에서 **근거를 인용하며** 필수/우대/담당업무로 구조화 추출합니다. 추출한 스킬이 원문에 실제 등장하는지 `validateGrounding`으로 검증하고, 근거 비율이 낮으면 규칙엔진으로 폴백합니다.
-
-3. **작은 자체 모델로 어떻게 품질을 유지하나요?**
-   소형 파인튜닝 R1 모델의 알려진 오류(경력 오분류, 스킬에 업무문장 혼입)를 결정론 코드로 후처리합니다. 정규식으로 연차를 보정하고, 길이·패턴으로 업무문장을 걸러내고, grounding으로 환각을 막습니다.
-
-4. **기업 분석 LLM이 거짓 정보를 사실처럼 말하면요?**
-   세 층에서 막습니다 — 데이터 모델은 `verified_facts`와 `ai_inferences`를 별도 컬럼으로 분리하고, 프롬프트는 외부 웹 검색과 내부지식 사용을 금지하고, 검증은 회사 사실이 입력에서 직접 확인되는지 체크합니다.
-
-5. **B 데이터가 다른 영역으로 어떻게 흘러가나요?**
-   `required_skills`/`preferred_skills`/`duties`는 C 적합도 판정 기준이 되고, 공고·기업 분석은 E 첨삭 맥락이 됩니다. D 면접은 설계상 `interview_points`를 쓰려 했지만, 현재 구현은 스킬 기반 템플릿을 쓰는 간접 연결입니다(정직한 갭).
-
----
-
-## 10. 직접 말해보기
-
-다음을 보지 않고 60초 안에 말할 수 있으면 B 개요는 합격이다.
-
-- **핵심 단위가 지원 건**인 이유와, 그 아래 매달리는 5개 테이블
-- B의 철학 한 문장 — **"생성이 아니라 근거 인용 구조화 추출"**
-- 담당 AI **#6~11**이 **단 2번의 LLM 호출**로 산출된다는 점
-- 데이터가 **C·D·E로 흐르는 경계**와, **#11→D의 정직한 갭**
-- 시그니처 3대 설계 — **revision 동결 / 사실·추론 분리 / 추출 1건 강제**
-- 현재 런타임이 **자체 LLM 기본 ON**이고, 설계서의 OpenAI 직결은 지난 시점이라는 것
+**Q5. B가 만든 데이터를 누가, 어떻게 쓰나요?**
+C·D·E가 **읽기 전용**으로 씁니다. C는 `required_skills`/`preferred_skills`를 적합도 채점 기준으로, D는 담당 업무·면접 포인트를 질문 입력으로, E는 공고 맥락을 첨삭 참조로 가져갑니다. 이들은 B 원본을 절대 수정하지 않습니다. 그래서 "이 공고가 뭘 요구하는가"의 단일 진실원이 B 한 곳으로 유지됩니다.
 
 ---
 
 ## 퀴즈
 
-<QuizBox question="영역 B에서 데이터 트리의 '루트(핵심 단위)'에 해당하는 것은?" :choices="['job_posting (공고 원문)', 'application_case (지원 건)', 'job_analysis (공고 분석)', 'company_analysis (기업 분석)']" :answer="1" explanation="CareerTuner의 핵심 단위는 공고가 아니라 지원 건(application_case)이다. 공고 원문·공고 분석·기업 분석·추출 잡이 모두 이 지원 건에 종속되며 ON DELETE CASCADE로 함께 정리된다." />
+<QuizBox question="영역 B에서 도메인의 루트(최상위 단위)는 무엇인가?" :choices="['job_posting(공고 원문)', 'application_case(지원 건)', 'company_analysis(기업 분석)', 'user_profile(프로필)']" :answer="1" explanation="CareerTuner의 핵심 단위는 공고가 아니라 지원 건(application_case)이다. 공고 원문·공고 분석·기업 분석·추출 잡이 모두 application_case_id FK로 매달려 ON DELETE CASCADE로 함께 정리된다." />
 
-<QuizBox question="영역 B의 '구조화 추출' 철학을 가장 정확히 설명한 것은?" :choices="['공고문 전체를 LLM이 더 읽기 좋게 새로 생성한다', '공고 텍스트를 문장 단위로 쪼개 필수/우대/담당업무로 분류·추출하며 원문 근거를 검증한다', '공고를 임베딩해 벡터 DB에 저장만 한다', '관리자가 수작업으로 조건을 입력한다']" :answer="1" explanation="B는 공고를 통째로 생성형으로 대체하지 않는다. OCR로 텍스트를 확보한 뒤 문장을 분류하고 조건을 구조화 추출하며, validateGrounding으로 추출 결과가 원문에 실제 등장하는지 검증해 환각을 막는다." />
+<QuizBox question="공고가 다시 업로드되어 내용이 바뀌었을 때 B의 처리 방식으로 옳은 것은?" :choices="['기존 job_posting 행을 UPDATE로 덮어쓴다', 'revision을 올려 새 행으로 INSERT하고 기존 행은 보존한다', '이전 분석을 즉시 삭제한다', '새 application_case를 별도로 만든다']" :answer="1" explanation="job_posting은 append-only다. 공고가 바뀌면 같은 케이스 안에서 revision을 1 올려 새 행으로 INSERT하고 기존 행은 그대로 둔다. 분석은 생성 시점의 job_posting_id+job_posting_revision을 동결해 재현성과 stale 판정을 보장한다." />
 
-<QuizBox question="자동 파이프라인에서 D(면접 질문) 생성과 #11 interview_points의 실제 관계는?" :choices="['interview_points를 그대로 D 질문으로 사용한다', 'interview_points를 직접 소비하지 않고, job_analysis의 스킬 기반 템플릿으로 질문을 만든다', 'D는 B 데이터를 전혀 쓰지 않는다', 'interview_points가 없으면 D 분석이 실패한다']" :answer="1" explanation="설계상으로는 #11이 D의 입력이어야 하지만, 실측하면 createInterviewPrep은 interview_points를 직접 쓰지 않고 required/preferred 스킬과 회사·직무명으로 하드코딩 템플릿 6문항을 만든다. '계획 vs 구현'의 정직한 갭으로 기술해야 한다." />
+<QuizBox question="영역 B의 AI 기능 #7(필수 조건)·#8(우대 조건)·#9(담당 업무)에 대한 설명으로 가장 정확한 것은?" :choices="['각각 독립된 별도 LLM 호출로 3번 호출된다', '공고 분석 한 번(#6, generateJobAnalysis)의 출력 필드로 함께 나온다', '관리자가 수동으로 입력한다', 'C 적합도 분석이 대신 생성한다']" :answer="1" explanation="#7·#8·#9는 #6 공고 분석 한 번의 호출에서 함께 채워지는 필드다. 필수/우대는 별도 배열(required_skills/preferred_skills)로, 담당 업무는 duties 텍스트로 한 번에 나온다. 이 출력은 C 적합도의 채점 기준이 된다." />

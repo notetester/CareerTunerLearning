@@ -81,8 +81,8 @@
 | SPA / 컴포넌트 / Hook | React Router 7, `app/components/ui`, `useApplicationFitAnalysis` |
 | CI/CD | GitHub Actions 5종 (`frontend-ci`, `service-pipeline-ci`, `deploy-demo` 등) |
 
-:::warning 영역 표시 (정직하게 말하기)
-이 표는 학습용 좌표다. 본인 담당은 **영역 C(적합도 분석·장기 취업경향·대시보드 AI)**이고, 인증/CORS/ApiResponse·예외 처리 같은 공통 영역은 팀장 소유다. 면접에서 "내가 직접 만들었다"와 "팀이 정한 공통 규약을 따라 썼다"를 구분해서 말해라. C에서 직접 만든 건 `FitAnalysisAiService`, `CareerAnalysisRunService`, `DashboardInsightAiCommand` 같은 분석 서비스다.
+:::tip 영역 표시 (정직하게 말하기)
+이 표는 학습용 좌표다. CareerTuner는 6명이 영역 A~F를 나눠 맡고(자세히는 [영역별 심화](/areas/)), 인증/CORS/ApiResponse·예외 처리 같은 공통 영역은 팀 공통 규약이다. 면접에서는 **자기가 직접 만든 영역**과 **팀 공통 규약을 따라 쓴 부분**을 정직하게 구분해서 말하는 게 핵심이다.
 :::
 
 ## 이 영역 단골 면접질문 5개

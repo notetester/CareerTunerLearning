@@ -20,8 +20,8 @@ CareerTuner는 채용공고에 맞춰 스펙과 면접 답변을 조정하는 AI
 
 도메인 패키지는 `com.careertuner` 아래에 기능별로 나뉜다: `auth`, `applicationcase`, `jobposting`, `jobanalysis`, `companyanalysis`, `fitanalysis`, `analysis`, `dashboard`, `interview`, `credit`, `payment`, `notification`, 그리고 횡단 공통 코드가 모이는 `common`.
 
-:::warning 영역 표시
-본인(영역 C) 담당은 `fitanalysis`(적합도 분석), `analysis`(장기 취업경향), `dashboard`(요약 인사이트) 같은 **분석 도메인**이다. `common`, 보안, 라우팅 같은 공통 영역은 팀장 소유다. 면접에서는 "내가 직접 짠 분석 도메인"과 "팀 공통 규약을 따른 부분"을 정직하게 구분해서 말하자.
+:::tip 영역 표시
+백엔드 도메인은 6영역(A~F)이 나눠 소유한다 — 예: A `auth`/`profile`, B `jobposting`/`jobanalysis`, C `fitanalysis`/`analysis`/`dashboard`, D `interview`, E `correction`/`payment`, F `community`/`support`. `common`·보안·라우팅 같은 공통 영역은 팀 공통 규약이다. 영역별 상세는 [영역별 심화](/areas/) 참고.
 :::
 
 ## 두 가지 핵심 철학

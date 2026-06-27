@@ -59,9 +59,9 @@ features:
 | 상황 | 추천 시작점 |
 | --- | --- |
 | 기초 용어가 입에 안 붙는다 | [기초 용어집](/glossary/) → API, DTO, 인증/인가 |
-| 내가 뭘 썼는지 지도부터 보고 싶다 | [내 코드 기반 기술 지도](/guide/tech-map) |
+| 어떤 기술이 어디 쓰였는지 지도부터 | [기술 지도](/guide/tech-map) |
 | 백엔드 면접이 코앞이다 | [백엔드 개요](/backend/) → Spring Boot, MyBatis, JWT |
-| 특정 영역을 깊게 설명해야 한다 | [영역별 심화 A~F](/area-a/) — A 회원 · B 공고 · [C 분석](/area-c/) · D 면접 · E 첨삭 · F 커뮤니티 |
+| 특정 영역을 깊게 설명해야 한다 | [영역별 심화 — 6영역 전체 개요](/areas/) (A 회원·B 공고·C 분석·D 면접·E 첨삭·F 커뮤니티) |
 | "프로젝트 전체를 설명해보세요" 대비 | [전체 흐름](/flow/) → [아키텍처](/flow/architecture) · [사용자 여정](/flow/user-journey) · [전체 면접 플레이북](/flow/interview-whole-project) |
 
 ::: tip 목표

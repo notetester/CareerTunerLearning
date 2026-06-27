@@ -91,7 +91,7 @@
 **꼬리(면접 직전):** 7단계 꼬리질문만 쭉 훑으며 답이 바로 나오는지 점검. 막히는 것만 표시해 다음날 다시.
 
 :::tip 연결 학습
-한 개념이 다른 개념을 부른다. 본문 안의 링크(예: [DTO](/glossary/dto), [JWT](/backend/jwt-security), [ApiResponse 엔벨로프](/glossary/api-response-envelope))를 타고 가며 묶어서 외우면 꼬리질문에 강해진다. 4단계(내 코드 위치)가 막히면 [내 코드 기반 기술 지도](/guide/tech-map)로 가서 기능→파일을 한 번에 훑어라.
+한 개념이 다른 개념을 부른다. 본문 안의 링크(예: [DTO](/glossary/dto), [JWT](/backend/jwt-security), [ApiResponse 엔벨로프](/glossary/api-response-envelope))를 타고 가며 묶어서 외우면 꼬리질문에 강해진다. 4단계(내 코드 위치)가 막히면 [기술 지도](/guide/tech-map)로 가서 기능→파일을 한 번에 훑어라.
 :::
 
 ## 7. 자주 나오는 꼬리질문 + 모범답안

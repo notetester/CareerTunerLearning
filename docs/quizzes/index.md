@@ -22,7 +22,7 @@ CareerTuner Learning의 모든 학습 페이지는 끝에 `QuizBox` 퀴즈가 2~
 | 백엔드 | [백엔드 퀴즈](/quizzes/backend) | Spring Boot, MVC/REST, MyBatis, JWT/Security, 예외 처리, 검증 |
 | 프론트엔드 | [프론트엔드 퀴즈](/quizzes/frontend) | React, Vite, 라우팅, 상태관리, API 레이어/토큰 리프레시, PWA, Capacitor |
 | AI | [AI 퀴즈](/quizzes/ai) | 적합도/취업경향/대시보드 분석(영역 C), 프롬프트 카탈로그, RAG, 오케스트레이터 |
-| 프로젝트 | [프로젝트 Q&A 점검](/quizzes/project-qna) | "프로젝트 소개해보세요" 류, 내 역할(영역 C), 어려웠던 문제, 협업 |
+| 프로젝트 | [프로젝트 Q&A 점검](/quizzes/project-qna) | "프로젝트 소개해보세요" 류, 본인 담당 영역, 어려웠던 문제, 협업 |
 
 :::tip 추천 순서
 용어가 입에 안 붙으면 [용어집](/glossary/)을 먼저 한 바퀴 돌고 → 자기 담당인 [AI 퀴즈](/quizzes/ai)와 [프로젝트 Q&A](/quizzes/project-qna)부터 → 그다음 [백엔드](/quizzes/backend)·[프론트엔드](/quizzes/frontend) 순으로 넓히는 걸 권한다. 내 손으로 짠 영역 C(적합도·취업경향·대시보드 분석)를 가장 자신 있게 말할 수 있어야 한다.
@@ -58,7 +58,7 @@ CareerTuner Learning의 모든 학습 페이지는 끝에 `QuizBox` 퀴즈가 2~
 | 토큰 만료/리프레시가 안 떠오른다 | [JWT와 Spring Security](/backend/jwt-security), [API 레이어·토큰 리프레시](/frontend/api-layer-jwt-refresh) |
 | 적합도 분석을 설명 못 하겠다 | [적합도 분석](/ai/fit-analysis) |
 | 점수를 AI가 직접 매기냐는 질문이 막힌다 | [적합도 분석](/ai/fit-analysis), [OpenAI 구조화 출력](/ai/openai-structured-output) |
-| 내 역할(영역 C)을 한 줄로 못 말한다 | [내 역할 — 영역 C](/project/my-role), [CareerTuner 한눈에](/project/overview) |
+| 본인 담당 영역을 한 줄로 못 말한다 | [영역별 역할 분담](/project/my-role) · [CareerTuner 한눈에](/project/overview) |
 
 :::warning 자기 영역은 정직하게
 영역 C 안에서도 **구현된 것**(적합도 분석 `FitAnalysisAiService`·`fit_analysis`, 장기 취업경향 `CareerAnalysisRunService`·`career_analysis_run`, 대시보드 `DashboardInsightPromptCatalog`)과 **설계 단계**(자체 LLM 커리어전략 모델 `careertuner-c-career-strategy`)를 섞어 말하지 말자. 퀴즈 해설도 이 구분을 따른다. 면접에서 계획을 구현처럼 말하면 꼬리질문에서 무너진다.
