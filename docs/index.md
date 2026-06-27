@@ -62,7 +62,7 @@ features:
 | 내가 뭘 썼는지 지도부터 보고 싶다 | [내 코드 기반 기술 지도](/guide/tech-map) |
 | 백엔드 면접이 코앞이다 | [백엔드 개요](/backend/) → Spring Boot, MyBatis, JWT |
 | 특정 영역을 깊게 설명해야 한다 | [영역별 심화 A~F](/area-a/) — A 회원 · B 공고 · [C 분석](/area-c/) · D 면접 · E 첨삭 · F 커뮤니티 |
-| "프로젝트 소개해보세요" 대비 | [CareerTuner 한눈에](/project/overview) · [면접 스토리](/project/interview-story) |
+| "프로젝트 전체를 설명해보세요" 대비 | [전체 흐름](/flow/) → [아키텍처](/flow/architecture) · [사용자 여정](/flow/user-journey) · [전체 면접 플레이북](/flow/interview-whole-project) |
 
 ::: tip 목표
 "이 기술 써봤어요"가 아니라 **"이걸 여기에, 이런 이유로, 이렇게 썼고, 이런 점이 어려웠습니다"** 까지.

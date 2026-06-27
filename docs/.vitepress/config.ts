@@ -58,6 +58,7 @@ export default defineConfig({
           { text: '영역 F · 커뮤니티·챗봇', link: '/area-f/' },
         ],
       },
+      { text: '전체 흐름', link: '/flow/' },
       { text: '인프라', link: '/infra/' },
       { text: '프로젝트', link: '/project/overview' },
       { text: '퀴즈', link: '/quizzes/' },
@@ -211,6 +212,35 @@ export default defineConfig({
             { text: '공고 추출 (B)', link: '/ai/job-posting-extraction' },
             { text: '가상 면접 (D/E)', link: '/ai/interview-ai' },
             { text: 'AI 사용량·크레딧', link: '/ai/ai-usage-credit' },
+          ],
+        },
+      ],
+
+      '/flow/': [
+        { text: '전체 흐름', items: [{ text: '흐름 개요', link: '/flow/' }] },
+        {
+          text: '시스템 · 여정',
+          items: [
+            { text: '전체 아키텍처', link: '/flow/architecture' },
+            { text: '사용자 end-to-end 여정', link: '/flow/user-journey' },
+            { text: '지원 건 중심 흐름', link: '/flow/application-case' },
+            { text: '데이터 소유권 경계 맵', link: '/flow/data-ownership' },
+          ],
+        },
+        {
+          text: 'AI 흐름',
+          items: [
+            { text: 'AI 오케스트레이터 전체', link: '/flow/ai-orchestrator' },
+            { text: 'AI 기능 #1-34 맵', link: '/flow/ai-function-map' },
+            { text: 'AI 공급자·폴백 전략', link: '/flow/ai-providers-fallback' },
+            { text: '크레딧·사용량 흐름', link: '/flow/credit-usage' },
+          ],
+        },
+        {
+          text: '협업 · 종합',
+          items: [
+            { text: '팀 협업·시스템 경계', link: '/flow/team-collaboration' },
+            { text: '프로젝트 전체 면접 플레이북', link: '/flow/interview-whole-project' },
           ],
         },
       ],
