@@ -225,4 +225,4 @@ if (ratio &lt; properties.getLocalLlm().getGroundingThreshold()) {
 
 <QuizBox question="스키마를 강제했는데도 validateGrounding 검증이 추가로 필요한 이유로 가장 정확한 것은?" :choices="['스키마가 JSON 문법 오류를 못 잡기 때문', '스키마는 필드의 모양만 보장할 뿐 내용의 사실성(환각 여부)은 보장하지 못하기 때문', 'Ollama가 배열을 지원하지 않기 때문', 'temperature가 0이라 출력이 매번 달라지기 때문']" :answer="1" explanation="스키마는 requiredSkills가 문자열 배열임을 강제하지만 그 안에 공고에 없는 스킬이 들어가는 환각은 막지 못한다. validateGrounding이 토큰을 원문과 대조해 grounded 비율이 임계값(0.6) 미만이면 폴백시킨다." />
 
-<QuizBox question="런타임 기준 영역 B 프롬프트 카탈로그의 실제 VERSION 값은?" :choices="['b-v1', 'b-v3.2', 'gpt-5', 'self-rules-v1']" :answer="0" explanation="JobAnalysisPromptCatalog와 CompanyAnalysisPromptCatalog 모두 VERSION=\"b-v1\"이다. 스토리보드에 보이는 b-v3.2는 VITE_USE_MOCK 데모 값이라 런타임 진실이 아니다." />
+<QuizBox question="런타임 기준 영역 B 프롬프트 카탈로그의 실제 VERSION 값은?" :choices="['b-v1', 'b-v3.2', 'gpt-5', 'self-rules-v1']" :answer="0" explanation="JobAnalysisPromptCatalog와 CompanyAnalysisPromptCatalog 모두 VERSION='b-v1'이다. 스토리보드에 보이는 b-v3.2는 VITE_USE_MOCK 데모 값이라 런타임 진실이 아니다." />
