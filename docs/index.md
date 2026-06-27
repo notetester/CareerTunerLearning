@@ -29,14 +29,14 @@ features:
     title: 면접 답변 3단계
     details: 모든 기술마다 초간단 한 문장 / 기본 답변 / 꼬리질문 대응. 질문이 얕아도 깊어도 흔들리지 않게.
     link: /backend/
-  - icon: ⭐
-    title: 영역 C 심화 (내 전문)
-    details: 적합도 분석 파이프라인·점수 규칙엔진·뉴로심볼릭·3단 폴백·캐시·데이터/클래스 설계·면접 플레이북까지. 내가 직접 만든 영역을 가장 깊게.
-    link: /area-c/
-  - icon: 🛠️
-    title: 다른 영역도 전부
-    details: 내가 한 것만큼 다른 조원의 작업(공고추출·면접·인프라)도 같은 깊이로. 팀 프로젝트는 전체를 알아야 하니까.
-    link: /infra/
+  - icon: 🗂️
+    title: 영역별 심화 챕터 (A~F)
+    details: 6명이 나눠 만든 6개 영역(회원·공고·분석·면접·첨삭·커뮤니티)을 각각 깊게 — 무엇을·왜·어떤 기술로·어떻게 구현했는지 + 영역별 면접 플레이북.
+    link: /area-a/
+  - icon: 🧠
+    title: AI 설계 패턴
+    details: 구조화 출력·RAG·오케스트레이터·폴백·프롬프트 카탈로그 등 영역을 가로지르는 AI 공통 패턴을 한곳에서.
+    link: /ai/
   - icon: ✅
     title: 퀴즈로 점검
     details: 객관식 즉시 채점 + 주관식 모범답안. 틀린 부분은 해당 학습 페이지로 바로 복습.
@@ -61,7 +61,7 @@ features:
 | 기초 용어가 입에 안 붙는다 | [기초 용어집](/glossary/) → API, DTO, 인증/인가 |
 | 내가 뭘 썼는지 지도부터 보고 싶다 | [내 코드 기반 기술 지도](/guide/tech-map) |
 | 백엔드 면접이 코앞이다 | [백엔드 개요](/backend/) → Spring Boot, MyBatis, JWT |
-| 내가 만든 AI 기능을 깊게 설명해야 한다 | [⭐ 영역 C 심화](/area-c/) → [적합도 파이프라인](/area-c/fit-analysis) · [면접 플레이북](/area-c/interview-playbook) |
+| 특정 영역을 깊게 설명해야 한다 | [영역별 심화 A~F](/area-a/) — A 회원 · B 공고 · [C 분석](/area-c/) · D 면접 · E 첨삭 · F 커뮤니티 |
 | "프로젝트 소개해보세요" 대비 | [CareerTuner 한눈에](/project/overview) · [면접 스토리](/project/interview-story) |
 
 ::: tip 목표
