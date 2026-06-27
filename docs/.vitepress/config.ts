@@ -523,7 +523,7 @@ export default defineConfig({
           items: [
             { text: 'CareerTuner 한눈에', link: '/project/overview' },
             { text: '전체 아키텍처', link: '/project/architecture' },
-            { text: '내 역할 — 영역 C', link: '/project/my-role' },
+            { text: '영역별 역할 분담', link: '/project/my-role' },
             { text: '자동 스토리보드 파이프라인', link: '/project/storyboard-pipeline' },
             { text: '어려웠던 문제와 해결', link: '/project/troubleshooting' },
             { text: '프로젝트 면접 스토리', link: '/project/interview-story' },
