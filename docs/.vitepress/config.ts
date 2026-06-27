@@ -47,6 +47,7 @@ export default defineConfig({
       { text: '백엔드', link: '/backend/' },
       { text: '프론트엔드', link: '/frontend/' },
       { text: 'AI', link: '/ai/' },
+      { text: '⭐ 영역 C 심화', link: '/area-c/' },
       { text: '인프라', link: '/infra/' },
       { text: '프로젝트', link: '/project/overview' },
       { text: '퀴즈', link: '/quizzes/' },
@@ -200,6 +201,52 @@ export default defineConfig({
             { text: '공고 추출 (B)', link: '/ai/job-posting-extraction' },
             { text: '가상 면접 (D/E)', link: '/ai/interview-ai' },
             { text: 'AI 사용량·크레딧', link: '/ai/ai-usage-credit' },
+          ],
+        },
+      ],
+
+      '/area-c/': [
+        {
+          text: '영역 C 심화 (내 전문 영역)',
+          items: [
+            { text: '개요 & 설계 철학', link: '/area-c/' },
+          ],
+        },
+        {
+          text: '핵심 파이프라인',
+          items: [
+            { text: '적합도 분석 파이프라인', link: '/area-c/fit-analysis' },
+            { text: '점수 산출 규칙엔진', link: '/area-c/score-engine' },
+            { text: '부족역량·학습·자격증', link: '/area-c/gap-and-learning' },
+            { text: '지원 전략', link: '/area-c/application-strategy' },
+          ],
+        },
+        {
+          text: 'AI 설계',
+          items: [
+            { text: '뉴로-심볼릭 아키텍처', link: '/area-c/neuro-symbolic' },
+            { text: '가드레일 & 그라운딩', link: '/area-c/guardrails' },
+            { text: '3단 폴백 체인', link: '/area-c/fallback-chain' },
+            { text: '구조화 출력', link: '/area-c/structured-output' },
+            { text: 'Read-through 캐시', link: '/area-c/caching-fingerprint' },
+          ],
+        },
+        {
+          text: '데이터 · 구조',
+          items: [
+            { text: '장기 취업경향 분석', link: '/area-c/career-trend' },
+            { text: '대시보드 AI 요약', link: '/area-c/dashboard-insight' },
+            { text: '오케스트레이터 FIT 파트', link: '/area-c/orchestrator-fit' },
+            { text: 'C 데이터 모델', link: '/area-c/data-model' },
+            { text: 'C 클래스 설계', link: '/area-c/class-design' },
+          ],
+        },
+        {
+          text: 'UI · 종합',
+          items: [
+            { text: 'C 프론트엔드 UI/UX', link: '/area-c/frontend-ui' },
+            { text: 'C 관리자 화면', link: '/area-c/admin' },
+            { text: '종합 면접 플레이북', link: '/area-c/interview-playbook' },
           ],
         },
       ],

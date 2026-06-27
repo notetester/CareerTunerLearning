@@ -29,10 +29,10 @@ features:
     title: 면접 답변 3단계
     details: 모든 기술마다 초간단 한 문장 / 기본 답변 / 꼬리질문 대응. 질문이 얕아도 깊어도 흔들리지 않게.
     link: /backend/
-  - icon: 🧠
-    title: AI 기능 심화
-    details: 적합도·취업경향·대시보드 AI(내 영역 C)부터 RAG·오케스트레이터·면접 AI까지. 구현된 것과 계획을 정직하게 구분.
-    link: /ai/
+  - icon: ⭐
+    title: 영역 C 심화 (내 전문)
+    details: 적합도 분석 파이프라인·점수 규칙엔진·뉴로심볼릭·3단 폴백·캐시·데이터/클래스 설계·면접 플레이북까지. 내가 직접 만든 영역을 가장 깊게.
+    link: /area-c/
   - icon: 🛠️
     title: 다른 영역도 전부
     details: 내가 한 것만큼 다른 조원의 작업(공고추출·면접·인프라)도 같은 깊이로. 팀 프로젝트는 전체를 알아야 하니까.
@@ -61,7 +61,7 @@ features:
 | 기초 용어가 입에 안 붙는다 | [기초 용어집](/glossary/) → API, DTO, 인증/인가 |
 | 내가 뭘 썼는지 지도부터 보고 싶다 | [내 코드 기반 기술 지도](/guide/tech-map) |
 | 백엔드 면접이 코앞이다 | [백엔드 개요](/backend/) → Spring Boot, MyBatis, JWT |
-| 내가 만든 AI 기능을 설명해야 한다 | [적합도 분석](/ai/fit-analysis) · [장기 취업경향](/ai/career-trend-analysis) |
+| 내가 만든 AI 기능을 깊게 설명해야 한다 | [⭐ 영역 C 심화](/area-c/) → [적합도 파이프라인](/area-c/fit-analysis) · [면접 플레이북](/area-c/interview-playbook) |
 | "프로젝트 소개해보세요" 대비 | [CareerTuner 한눈에](/project/overview) · [면접 스토리](/project/interview-story) |
 
 ::: tip 목표
