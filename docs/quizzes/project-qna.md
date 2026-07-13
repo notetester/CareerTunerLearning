@@ -42,17 +42,17 @@
 | 대시보드 요약 | `DashboardInsightAiCommand`, `DashboardInsightPromptCatalog` | 구현됨 |
 | 프롬프트 카탈로그 | `FitAnalysisPromptCatalog`, `CareerTrendPromptCatalog` | 구현됨 |
 | 오케스트레이션 | AutoPrep `FitPrepHandler`, SSE 진행보고, JOB(B)→FIT(C) 의존그래프 | 구현됨 |
-| 자체 LLM 전략모델 | `careertuner-c-career-strategy`(Qwen/Gemma), 학습데이터 `ml/career-strategy-llm` | **설계 단계** |
+| 자체 LLM 전략모델 | `careertuner-c-career-strategy-3b`(Qwen2.5-3B LoRA), `ml/career-strategy-llm` | 학습·평가·연결 검증, 기본 provider는 OpenAI |
 | 자동 스토리보드 | `docs/storyboard/C` spec→캡처→5포맷 파이프라인 | 구현됨 |
 
 :::warning 정직하게 구분하라
-자체 LLM 커리어전략 모델은 **설계 단계(미구현)**다. 면접에서 "지금 돌아갑니다"라고 말하면 꼬리질문에서 무너진다. "현재는 OpenAI 기반으로 동작하고, 비용·종속성을 줄이기 위해 자체 LLM으로 대체하는 설계를 해뒀다"는 식으로 구현/계획을 분리해서 말하라.
+자체 모델은 실제로 학습·평가하고 서비스 경로에 연결했다. 그러나 저장소 기본 provider는 OpenAI다. "모델을 연결했다"와 "모든 운영 요청이 자체 모델을 쓴다"를 섞지 말라.
 :::
 
 ## 5. 핵심 답변 골격 (다섯 축 모범 뼈대)
 
 ### 프로젝트 소개 (1분)
-"CareerTuner는 채용공고에 맞춰 스펙과 면접 답변을 조정하는 AI 취업 전략 플랫폼입니다. 핵심 단위가 '공고'가 아니라 **지원 건(Application Case)**이라는 게 차별점인데, 같은 공고라도 지원자마다 강조할 스펙과 전략이 다르기 때문입니다. Spring Boot 4 + MyBatis 백엔드, React 18 프런트, 그리고 공고추출 Python 워커와 RAG용 Qdrant로 구성됐고, 6명이 기능별 수직 분담으로 개발했습니다."
+"CareerTuner는 채용공고에 맞춰 스펙과 면접 답변을 조정하는 AI 취업 전략 플랫폼입니다. 핵심 단위가 '공고'가 아니라 **지원 건(Application Case)**이라는 게 차별점인데, 같은 공고라도 지원자마다 강조할 스펙과 전략이 다르기 때문입니다. Spring Boot 4.1 + MyBatis 백엔드, React 19 프런트, 그리고 공고추출 Python 워커와 RAG용 Qdrant로 구성됐고, 6명이 기능별 수직 분담으로 개발했습니다."
 
 ### 내 역할 (1분)
 "저는 영역 C, **AI 분석 파이프라인**을 맡았습니다. 지원 건과 공고를 입력받아 적합도 점수·매칭 기술·부족 역량·추천 학습/자격증·지원 전략을 산출하는 `FitAnalysisAiService`를 구현했고, 여러 지원 건을 모아 반복되는 부족 역량과 지원 패턴을 분석하는 장기 취업경향 분석(`CareerAnalysisRunService`), 대시보드 요약 인사이트까지 담당했습니다."
@@ -64,7 +64,7 @@
 "가장 어려웠던 건 **LLM 출력의 불확실성**이었습니다. 같은 입력에도 점수가 흔들리고, 가끔 형식이 깨졌습니다. 그래서 두 가지를 했습니다. (1) OpenAI structured output으로 응답 스키마를 강제해 `FitAnalysisAiResult`로 안전하게 파싱하고, (2) 점수와 지원 판정은 LLM 출력을 그대로 믿지 않고 **서버 규칙·검증 로직으로 다시 확정**했습니다. LLM은 근거 생성용, 최종 숫자는 결정적 로직이 책임지는 구조입니다."
 
 ### 개선점 (자체 LLM 전환)
-"현재 AI 분석은 OpenAI에 의존하는데, 비용과 외부 종속성이 부담입니다. 그래서 커리어 전략 도메인에 특화된 **자체 LLM(Qwen/Gemma 베이스)**으로 대체하는 설계를 해뒀고, `캐시 → 규칙엔진 → OpenAI → Mock`의 Fallback 체인으로 점진 전환할 계획입니다. 아직 학습 데이터 구축 단계입니다."
+"OpenAI 기본 경로의 비용과 외부 종속성을 줄이기 위해 Qwen2.5-3B LoRA를 직접 학습하고 OSS provider에 연결했습니다. 점수와 지원 판단은 규칙엔진이 소유하며, 자체 endpoint를 사용할 수 없는 환경은 OpenAI와 규칙 기반 안전망으로 이어집니다. 다음 과제는 실운영 품질·지연·가용성 근거를 쌓아 기본 provider 승격 여부를 판단하는 것입니다."
 
 ## 6. 면접 답변 3단계 (예시: "역할이 뭐였나요")
 
@@ -87,7 +87,7 @@
 :::
 
 :::details Q. "왜 OpenAI를 쓰면서 자체 LLM도 준비하나요? 모순 아닌가요?"
-"단계적 전략입니다. 초기엔 검증된 OpenAI로 빠르게 품질을 확보하고, 트래픽·비용이 늘면 커리어 도메인에 특화 학습한 자체 LLM(Ollama 서빙)으로 옮기는 겁니다. Fallback 체인(`캐시→규칙→OpenAI→Mock`) 덕분에 자체 모델이 약한 케이스는 자동으로 OpenAI로 넘어가, 전환 리스크 없이 점진 이행이 가능합니다. 현재는 설계·데이터 구축 단계입니다."
+"단계적 전략입니다. OpenAI로 품질 기준선을 확보한 뒤 Qwen2.5-3B LoRA를 학습·Ollama 서빙하고 Spring provider에 연결했습니다. 지금은 자체 endpoint를 설정한 환경에서 검증할 수 있고 기본값은 OpenAI입니다. provider가 달라도 점수·지원 판단은 규칙엔진이 확정해 전환 위험을 줄였습니다."
 :::
 
 :::details Q. "기술적으로 가장 자랑스러운 부분 하나만?"
@@ -107,4 +107,4 @@
 
 <QuizBox question="CareerTuner의 적합도 분석에서 최종 점수와 지원 판정은 누가 확정하는가? 면접 답변처럼 한 문장으로 설명하라." explanation="LLM은 분석 근거를 생성하는 역할만 하고, 점수와 지원 판정 같은 최종 결과는 서버의 규칙·검증 로직이 다시 확정한다. structured output으로 형식을 강제해 FitAnalysisAiResult로 안전하게 파싱하고, AI 호출이 실패하면 FallbackFitAnalysisAiService가 규칙 기반 결과나 Mock으로 graceful degradation 한다. 즉 LLM은 믿되 검증하는 구조다." />
 
-<QuizBox question="면접관이 '이 프로젝트에서 본인이 직접 한 부분과 개선점'을 물었다. 자기 역할(영역 C)과 솔직한 개선점을 묶어 1분 분량으로 말해보라(모범답안 참고)." explanation="역할: 영역 C인 AI 분석 파이프라인을 맡아, 지원 건과 공고로부터 적합도 점수·부족 역량·추천 학습/자격증·지원 전략을 산출하는 FitAnalysisAiService, 장기 취업경향 분석(CareerAnalysisRunService), 대시보드 요약을 구현했고 결과는 fit_analysis·career_analysis_run 테이블에 저장된다. 개선점: 현재 분석이 OpenAI에 의존해 비용·외부 종속성 부담이 있어, 커리어 도메인 특화 자체 LLM(Qwen/Gemma)으로 대체하는 설계를 해뒀고 캐시→규칙엔진→OpenAI→Mock Fallback 체인으로 점진 전환할 계획이다. 단, 자체 LLM은 아직 학습 데이터 구축 단계라는 점을 정직하게 구분해 말하는 것이 신뢰를 준다." />
+<QuizBox question="면접관이 '이 프로젝트에서 본인이 직접 한 부분과 개선점'을 물었다. 자기 역할(영역 C)과 솔직한 개선점을 묶어 1분 분량으로 말해보라(모범답안 참고)." explanation="역할: 영역 C의 적합도·장기 경향·대시보드 분석과 결과 저장을 구현했고, Qwen2.5-3B LoRA를 학습·평가해 OSS provider에 연결했다. 점수와 지원 판단은 규칙엔진이 소유한다. 개선점: 저장소 기본 provider는 OpenAI이므로 자체 모델의 상시 가용성·지연·품질 근거를 더 쌓아 기본값 승격 여부를 판단해야 하고, RAG는 hard-case에서 이득이 확인될 때만 다시 검토한다." />

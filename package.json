@@ -6,6 +6,7 @@
   "description": "CareerTuner 프로젝트 기반 기술 면접 학습 자료 (VitePress)",
   "scripts": {
     "docs:dev": "vitepress dev docs",
+    "docs:check:stale": "node scripts/check-stale-claims.mjs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },

@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Reject stale claims
+        run: npm run docs:check:stale
+
       - name: Build with VitePress
         run: npm run docs:build
 

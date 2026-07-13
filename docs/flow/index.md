@@ -28,7 +28,7 @@ CareerTuner는 6명이 **수직 분담**한 6개 영역이고, 각자가 `사용
 | **E** | 첨삭 + 결제·크레딧 원장 | `correction_request`, `payment`, `credit_transaction` | 24~28 | (원장 분리, 사용량 집계 소비) | [/area-e/](/area-e/) |
 | **F** | 커뮤니티·고객센터·인테이크 챗봇 | `community_*`, `support_ticket`, `notification` | 29~34 | 실제 면접질문 → D, 슬롯 수집 → 오케스트레이터 | [/area-f/](/area-f/) |
 
-데이터 규모는 **약 68개 테이블**(영역별 표기가 일부 혼재해 A 8~9개·D 7~8개처럼 경계가 있다 — 자세한 건 [/flow/data-ownership](/flow/data-ownership)). 허브 테이블은 사용자 축의 `users`(A)와 지원 건 축의 `application_case`(B)다.
+데이터 규모는 기준 커밋의 canonical `schema.sql`에서 **168개 테이블**이다. 허브 테이블은 사용자 축의 `users`(A)와 지원 건 축의 `application_case`(B)이며, 숫자는 [문서 기준선](/project/source-baseline)의 SHA와 함께 갱신한다.
 
 :::tip 가장 중요한 한 문장
 **핵심 단위는 "공고"가 아니라 "지원 건(Application Case)"이다.** 프로필·공고분석·적합도·면접·첨삭·결제·후기가 전부 하나의 지원 건에 매달린다. 면접에서 이 한 문장으로 시작하면 나머지 설명이 전부 이 축에 정렬된다.

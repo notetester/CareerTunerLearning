@@ -55,8 +55,8 @@ CareerTuner는 **프롬프트를 코드에 흩뿌리지 않고 도메인별 "프
 적합도 점수(`fitScore`)·지원판단(`applyDecision`)·매칭/부족 역량은 **서버 규칙엔진(`MockFitAnalysisAiService`)이 결정론적으로 계산**하고, LLM은 그 값을 *입력으로 받아* **한국어 설명 텍스트만** 생성한다(`FitAnalysisPromptCatalog.FIT_EXPLAIN_SYSTEM_PROMPT`, `OssFitAnalysisAiService`). 숫자는 코드가, 말은 모델이 — temperature로 인한 점수 흔들림을 원천 차단하는 패턴이다.
 :::
 
-:::warning 설계 단계인 것
-자체 파인튜닝 커리어전략 모델(`careertuner-c-career-strategy`, Qwen/Gemma 베이스)과 학습 데이터셋(`ml/career-strategy-llm`)은 **계획·설계 단계**다. 프롬프트 카탈로그에 학습용 system 프롬프트 자리는 잡혀 있지만(train/serve skew 방지 목적), 현재 운영 경로는 OpenAI + 규칙엔진 + Mock 폴백이다.
+:::tip 학습 모델과 운영 기본값
+C의 Qwen2.5-3B LoRA는 학습·평가·Ollama 호환 서빙·Spring provider 연결 근거가 있다. 프롬프트 카탈로그를 학습과 서빙에서 맞춰 train/serve skew를 줄인다. 다만 저장소 기본 provider는 OpenAI이고 최종 판단은 규칙엔진이 확정한다.
 :::
 
 ## 5. 핵심 동작 원리 (표/작은 코드/단계)

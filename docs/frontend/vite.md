@@ -4,7 +4,7 @@
 
 ## 1. 한 줄 정의
 
-Vite는 **ESM(ES Modules) 기반의 빠른 개발 서버 + Rollup 기반 프로덕션 번들러**를 합친 프런트엔드 빌드 도구다. CareerTuner 프런트엔드(React 18 + TS)는 Vite 6.4로 dev 서버를 띄우고, dev 서버는 `/api` 요청을 Spring Boot 백엔드(:8080)로 프록시한다.
+Vite는 **ESM(ES Modules) 기반의 빠른 개발 서버 + Rollup 기반 프로덕션 번들러**를 합친 프런트엔드 빌드 도구다. CareerTuner 프런트엔드(React 19 + TypeScript)는 Vite 8.1.4로 dev 서버를 띄우고, dev 서버는 `/api` 요청을 Spring Boot 백엔드(:8080)로 프록시한다.
 
 ## 2. 단어 뜻 (약자/어원 풀이)
 

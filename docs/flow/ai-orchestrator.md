@@ -79,8 +79,8 @@ needsMode = plan.steps 에 INTERVIEW 있음
 - 출력: `AutoPrepIntakeResponse`(ready, message, nextAsk, 후보 목록)
 - 더 풍부한 멀티턴 챗봇 버전(LangChain4j `@AiService` `IntakeChatAgent`, `@Tool` 3종)은 [영역 F 인테이크 챗봇](/area-f/intake-chatbot)을 보라. 핵심 계약은 **F는 슬롯 수집까지, 실행 스트림은 D/오케스트레이터가 맡는다.**
 
-:::warning 정직한 구현 상태
-챗봇 멀티턴 백엔드(`ai/intake`)는 구현되어 있지만, **현재 프런트는 이 챗봇과 미연결**이고(모달은 `/intake` 칩 방식만 사용), 슬롯 영속화도 JVM 인메모리라 재시작 시 사라진다. 면접에서 "F 챗봇으로 슬롯을 모아 D를 트리거하는 계약은 완성, 프런트 연결은 다음 단계"라고 정직하게 말하면 된다.
+:::tip 현재 연결 상태
+멀티턴 인테이크는 공통 챗봇 프런트의 칩·파일 handoff와 연결돼 있다. 확정 슬롯은 `chatbot_intake_slot`에 저장하고 `PENDING`만 재시작 후 복원하며, READY/DONE은 stale 재진입을 막기 위해 복원하지 않는다.
 :::
 
 ### ② 두뇌(플래너) — 한 줄을 계획으로 (`AutoPrepPlanner`)
@@ -177,8 +177,8 @@ event: done        → "완료"
 | SSE 스트리밍(plan/part-start/substep/part-done/done) | 구현됨 (`runStream` + `useAutoPrepRun.ts`) |
 | 6파트 핸들러(A~F 래퍼) | 구현됨 (`*PrepHandler` 6개) |
 | 첨부 게이팅(요금제별 한도·12000자 컷) | 구현됨 (`AutoPrepAttachmentLoader`) |
-| 인테이크 챗봇 멀티턴 백엔드(`ai/intake`) | 구현됨, **프런트 미연결** |
-| 챗봇 슬롯 영속화 | **미구현**(JVM 인메모리) |
+| 인테이크 챗봇 멀티턴·프런트 handoff | 구현됨 |
+| 챗봇 슬롯 영속화·PENDING 복원 | 구현됨 (`chatbot_intake_slot`) |
 | 두뇌·핸들러의 자체 OSS 생성 경로 | 게이트웨이는 폴백 지원하나 생성 화이트리스트는 현재 빈 집합 → 사실상 Claude/OpenAI |
 
 :::warning 흔한 오해 두 가지

@@ -1,6 +1,6 @@
 # Spring Boot
 
-> Spring Boot는 Spring 프레임워크를 "설정 없이 바로 실행되는 서버"로 만들어주는 도구이고, CareerTuner 백엔드는 Spring Boot 4.0.6 + Java 21로 만든 REST API 서버다.
+> Spring Boot는 Spring 프레임워크를 "설정 없이 바로 실행되는 서버"로 만들어주는 도구이고, CareerTuner 백엔드는 Spring Boot 4.1.0 + Java 21로 만든 REST API 서버다.
 
 ## 1. 한 줄 정의
 
@@ -116,7 +116,7 @@ public class SomeService {
 ## 6. 면접 답변 3단계
 
 - **초간단(1문장)**: "Spring Boot는 Spring을 자동설정·내장톰캣·스타터로 포장해서 `main()` 하나로 바로 뜨는 서버를 만들게 해주는 프레임워크입니다."
-- **기본**: "CareerTuner 백엔드는 Spring Boot 4.0.6, Java 21로 만든 REST API 서버입니다. `@SpringBootApplication`이 붙은 진입점에서 컴포넌트 스캔과 자동설정이 돌고, webmvc 스타터의 내장 Tomcat이 8080을 엽니다. DI 컨테이너가 controller→service→mapper 빈을 생성자 주입으로 연결합니다."
+- **기본**: "CareerTuner 백엔드는 Spring Boot 4.1.0, Java 21로 만든 REST API 서버입니다. `@SpringBootApplication`이 붙은 진입점에서 컴포넌트 스캔과 자동설정이 돌고, webmvc 스타터의 내장 Tomcat이 8080을 엽니다. DI 컨테이너가 controller→service→mapper 빈을 생성자 주입으로 연결합니다."
 - **꼬리질문 대응**: "영속성은 JPA 대신 MyBatis 스타터만 쓰고, 응답은 `ApiResponse` 엔벨로프로 통일했습니다. 보안은 security 스타터 위에 JWT 필터를 얹었고, 자동설정이 합리적 기본값을 깔아주되 우리가 명시한 `SecurityConfig` 같은 설정이 그걸 오버라이드합니다."
 
 ## 7. 자주 나오는 꼬리질문 + 모범답안

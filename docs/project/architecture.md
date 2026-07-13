@@ -18,12 +18,12 @@
 
 | 계층 | 기술 | 포트/위치 | 역할 |
 | --- | --- | --- | --- |
-| 클라이언트 | React 18 · Vite 6 · TS · Tailwind v4 (SPA) | `:5173` (dev) | 화면·상태·`fetch('/api/*')` |
+| 클라이언트 | React 19 · Vite 8 · TS · Tailwind v4 (SPA) | `:5173` (dev) | 화면·상태·`fetch('/api/*')` |
 | 모바일 셸 | Capacitor (WebView) | 네이티브 앱 | 같은 React 빌드를 감싼 앱 |
 | 프록시 | Vite dev server | `:5173` → `:8080` | **dev 한정** `/api/*` 전달 |
-| API | Spring Boot 4.0.6 · Java 21 (REST) | `:8080` `/api/**` | 인증·검증·비즈니스 |
+| API | Spring Boot 4.1.0 · Java 21 (REST) | `:8080` `/api/**` | 인증·검증·비즈니스 |
 | 영속성 | MyBatis (JPA 금지) | `@Mapper` + XML | SQL ↔ 도메인 매핑 |
-| RDB | MySQL 8 | 약 68개 테이블 | 진실의 원천(source of truth) |
+| RDB | MySQL 8 | 기준 SHA의 정본 DDL 168개 테이블 | 진실의 원천(source of truth) |
 | 벡터DB | Qdrant | `:6333` | 면접 RAG 검색(best-effort) |
 | 비동기 워커 | Python 공고추출 워커 | 별도 프로세스 | OCR·문서텍스트 → 문장분류 |
 | AI 공급자 | OpenAI / Anthropic Haiku / 자체 Ollama | 외부·원격 | 자연어 생성·요약·평가 |
@@ -171,7 +171,7 @@ AI 오케스트레이터 AutoPrep의 진행 스트림(`produces=text/event-strea
 | --- | --- |
 | 4계층 + `ApiResponse` 엔벨로프 전 영역 | 자체 OSS 파인튜닝 모델 학습·서빙(영역별 진행도 상이) |
 | STATELESS JWT + 리프레시 원장 | 일부 영역 실 AI 공급자 키 연동 활성화 단계 |
-| MyBatis/MySQL 약 68개 테이블 | (배선·계약은 완성, 키만 꽂으면 동작) |
+| MyBatis/MySQL 기준 SHA의 168개 테이블 | (정본 DDL과 증분 패치로 관리) |
 | Vite 프록시 + CORS + Capacitor 셸 | |
 | AutoPrep 오케스트레이터·SSE | |
 | Qdrant RAG·Python 공고추출 워커 배선 | |
@@ -180,7 +180,7 @@ AI 오케스트레이터 AutoPrep의 진행 스트림(`produces=text/event-strea
 "**아키텍처와 계약(4계층·엔벨로프·인증 경계·곁가지 배선)은 완성**돼 있고, 일부 AI 공급자는 키/모델 발급 후 활성화하는 단계입니다. 화면과 API 계약은 실제 LLM과 동일하게 동작합니다."
 :::
 
-테이블 수는 문서마다 집계 기준(공통 `ai_usage_log` 포함 여부 등)이 달라 **약 68개**로 본다.
+테이블 수는 기준 커밋의 canonical `schema.sql`에서 서로 다른 `CREATE TABLE` 선언 **168개**로 계수한다.
 
 ---
 

@@ -1,6 +1,6 @@
 # A 프론트엔드 UI/UX — 인증·프로필·설정 화면
 
-> 영역 A의 화면은 "인증으로 나를 증명하고 · 프로필로 나를 설명하고 · 설정으로 동의를 관리한다"는 흐름을 React 18 + Vite로 구현한다. 폼은 라이브러리 없이 `useState` + 수동 검증으로 처리하고, 토큰은 localStorage에 두고 401 자동 갱신으로 세션을 유지한다.
+> 영역 A의 화면은 "인증으로 나를 증명하고 · 프로필로 나를 설명하고 · 설정으로 동의를 관리한다"는 흐름을 React 19 + Vite 8로 구현한다. 폼은 라이브러리 없이 `useState` + 수동 검증으로 처리하고, 토큰은 localStorage에 두고 401 자동 갱신으로 세션을 유지한다.
 
 ---
 
@@ -63,7 +63,7 @@
 | 기기 잠금 | `app/components/AppLockSettings.tsx` | 서버와 무관한 PIN/생체 2차 잠금 |
 | 소셜 콜백 | `app/pages/AuthCallback.tsx` | URL `#fragment` 토큰 후처리 |
 
-스택: **React 18 + Vite 6 + TypeScript + Tailwind v4**, 라우팅은 `react-router`, UI 프리미티브는 `components/ui/*`(Button/Card/Input/Tabs/Checkbox/Progress 등), 아이콘은 `lucide-react`. `/api/*` 요청은 Vite 프록시가 8080으로 전달한다. 관련 백엔드는 [JWT/보안](/backend/jwt-security)과 [영역 A 개요](/area-a/)를 함께 보면 좋다.
+스택: **React 19.2.7 + Vite 8.1.4 + TypeScript 7.0.2 + Tailwind CSS 4.3.2**, 라우팅은 `react-router`, UI 프리미티브는 `components/ui/*`(Button/Card/Input/Tabs/Checkbox/Progress 등), 아이콘은 `lucide-react`. `/api/*` 요청은 Vite 프록시가 8080으로 전달한다. 관련 백엔드는 [JWT/보안](/backend/jwt-security)과 [영역 A 개요](/area-a/)를 함께 보면 좋다.
 
 ---
 

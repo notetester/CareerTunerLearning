@@ -1,6 +1,6 @@
 # 데이터 소유권 · 읽기전용 경계 맵
 
-> 약 68개 테이블을 6개 영역(A~F)이 수직으로 나눠 소유한다. 핵심 규칙은 단 하나 — **각 영역은 자기 결과 테이블을 쓰고, 타 영역 원본은 읽기전용으로만 참조한다.** 정합성은 FK가 아니라 "분석 시점 입력을 소비자 쪽에 동결하는 스냅샷"으로 지킨다.
+> 기준 커밋의 canonical DDL 168개 테이블을 6개 영역(A~F)과 공통 영역이 나눠 소유한다. 핵심 규칙은 단 하나 — **각 영역은 자기 결과 테이블을 쓰고, 타 영역 원본은 읽기전용으로만 참조한다.** 정합성은 FK와 불변 입력 스냅샷을 함께 사용해 지킨다.
 
 이 페이지는 6개 영역을 가로지르는 "데이터의 소유·참조·정합성" 그림을 다룬다. 각 영역 테이블의 내부 설계 상세는 해당 영역 페이지에 있으니, 여기서는 **경계가 어떻게 그어지고 왜 그렇게 그었는가**에 집중한다.
 
@@ -12,7 +12,7 @@
 
 ## 1. 이 경계 맵이 답하는 면접 질문
 
-- "테이블이 68개나 되는데, 누가 무엇을 소유하나요? 충돌은 어떻게 막나요?"
+- "테이블이 많은데 누가 무엇을 소유하나요? 충돌은 어떻게 막나요?"
 - "C가 A의 프로필과 B의 공고분석을 입력으로 쓰는데, 어떻게 침범 없이 분석하나요?"
 - "원본이 나중에 바뀌면 과거 분석 결과는 어떻게 재현하나요?"
 - "FK로 다 묶었나요? 영역 간 결합은 어떻게 설계했나요?"
@@ -32,7 +32,7 @@
 | **F 커뮤니티/CS** | `community_*`, `support_ticket`, `notice`, `faq`, `notification`, `push_subscription` | 추출 면접질문 → D 참고 | [/area-f/](/area-f/) |
 
 ::: tip 테이블 수 표기
-DB설계서 기준 **약 68개 테이블**, 영역별 카운트는 문서에 따라 ±1 차이가 있다(예: A 8~9, D 7~8 — `ai_usage_log`/`file_asset`를 어느 쪽으로 세느냐의 차이). 학습용으로는 "약 68개, 영역별 ±1" 정도로 이해하면 충분하다.
+기준 커밋의 canonical `schema.sql`은 서로 다른 `CREATE TABLE` 선언 **168개**다. 이 숫자는 공통·운영 테이블까지 포함한 소스 계수이며, 기능별 소유권은 테이블 수보다 쓰기 주체와 데이터 생명주기로 판단한다.
 :::
 
 영역 간 FK는 거의 전부 두 허브로 수렴한다. 화살표는 "참조(읽기) 방향"이다.
@@ -110,10 +110,10 @@ DB설계서 기준 **약 68개 테이블**, 영역별 카운트는 문서에 따
 | 참조(FK only) | 입력 원본을 가리키는 FK만 보관 | 원본이 바뀌면 과거 분석 재현 불가, 감사 불가 |
 | 스냅샷(copy) | 분석 시점 입력 핵심을 결과 행에 복사·동결 | 약간의 저장 중복, 단 불변이라 동기화 깨질 일 없음 |
 
-CareerTuner는 **소비자 쪽 스냅샷**을 택했다. 핵심은 "스냅샷을 원본 소유자(A)가 아니라 소비자(C)가 들고 있다"는 점이다 — `fit_analysis.source_snapshot`, `career_analysis_run.input_snapshot`. 이렇게 하면 A는 프로필을 자유롭게 갱신하고, C는 "분석 시점의 사실(historical fact)"을 자기 테이블에 잠가둔다. 책임이 깔끔하게 분리된다.
+CareerTuner는 **원본 버전 + 소비자 스냅샷**을 함께 쓴다. A는 `user_profile_version`으로 프로필 변경 이력을 남기고 AI 분석 결과가 실제 버전을 참조하게 한다. C는 여기에 더해 `fit_analysis.source_snapshot`, `career_analysis_run.input_snapshot`으로 분석 당시 조립된 전체 입력을 자기 결과에 동결한다. 원본 변경 이력과 소비자 실행 입력을 서로 다른 책임으로 보존한다.
 
-::: warning 흔한 오해 — "user_profile_version 테이블이 있다"
-런타임 `schema.sql`에 **별도 프로필 버전 테이블은 없다.** `user_profile`은 `user_id` UNIQUE의 단일 행이다. "스냅샷으로 정합성"은 A의 버전 테이블이 아니라 **각 소비자 영역이 분석 결과 행 안에 입력을 동결**하는 방식으로 구현된다. 면접에서 "버전 테이블"로 오기하지 말 것.
+::: warning 두 이력의 목적을 섞지 말 것
+`user_profile_version`은 A가 소유한 프로필 변경 이력이고, C의 `source_snapshot`/`input_snapshot`은 특정 분석 실행의 조립 입력이다. 하나가 다른 하나를 대체하지 않는다. 결과 재현 시에는 참조한 프로필 버전과 실행 snapshot을 함께 본다.
 :::
 
 ### 4-2. 불변(append-only) 결과 = 성장 추적의 인프라
@@ -142,7 +142,7 @@ E 첨삭이 `original_text`/`improved_text`를 나눠 저장하는 건 단순 UX
 
 | 항목 | 상태 |
 | --- | --- |
-| 영역별 소유 테이블·FK 경계(약 68개) | **구현됨** (`schema.sql` DDL) |
+| 영역별 소유 테이블·FK 경계(기준 SHA 168개) | **구현됨** (`schema.sql` DDL) |
 | C 스냅샷·핑거프린트 캐시(`source_snapshot`/`input_snapshot`/`input_fingerprint`) | **구현됨** |
 | `fit_analysis` 불변(append-only) + `condition_match` 정규화 | **구현됨** |
 | E 첨삭 원문/결과 분리(`original_text`/`improved_text`) | **구현됨** |
@@ -153,7 +153,7 @@ E 첨삭이 `original_text`/`improved_text`를 나눠 저장하는 건 단순 UX
 ## 6. 면접 답변 — 데이터 소유권을 한 흐름으로
 
 ::: details 모범 답안(2분 분량)
-"CareerTuner는 약 68개 테이블을 6개 영역이 **수직으로 소유**합니다. 허브는 둘이에요 — 회원의 `users`, 그리고 핵심 단위인 `application_case`. 거의 모든 테이블이 이 둘로 FK가 모입니다.
+"CareerTuner는 기준 커밋에서 168개 테이블을 6개 기능 영역과 공통 영역이 **수직으로 소유**합니다. 허브는 둘이에요 — 회원의 `users`, 그리고 핵심 단위인 `application_case`. 많은 기능 테이블이 이 둘을 기준으로 연결됩니다.
 
 규칙은 단순합니다. **각 영역은 자기 결과 테이블만 쓰고, 남의 원본은 읽기전용으로만 봅니다.** 예를 들어 적합도 분석을 하는 C는 A의 프로필과 B의 공고분석을 입력으로 읽지만, 그 원본은 한 글자도 안 고치고 결과를 자기 `fit_analysis`에 INSERT합니다.
 
@@ -193,6 +193,6 @@ E 첨삭이 `original_text`/`improved_text`를 나눠 저장하는 건 단순 UX
 
 <QuizBox question="CareerTuner에서 영역 간 FK가 가장 많이 모이는 두 허브 테이블은?" :choices="['users와 fit_analysis', 'users와 application_case', 'application_case와 ai_usage_log', 'user_profile과 interview_session']" :answer="1" explanation="허브는 users(A, 회원의 모든 것)와 application_case(B, 핵심 단위)다. 거의 모든 결과 테이블이 user_id 또는 application_case_id FK로 이 둘에 수렴한다." />
 
-<QuizBox question="C 적합도 분석이 6개월 전 점수의 근거를 재현할 수 있는 이유는?" :choices="['A의 user_profile_version 테이블에서 과거 버전을 읽는다', '분석 시점 입력을 fit_analysis.source_snapshot에 복사해 동결한다', '원본 user_profile을 절대 수정하지 않기 때문이다', 'job_posting을 매번 새로 분석한다']" :answer="1" explanation="런타임 스키마에 프로필 버전 테이블은 없다. 정합성은 소비자(C)가 분석 시점 입력을 source_snapshot/input_snapshot에 복사·동결하는 방식으로 지킨다. 원본은 가변이고, 동결 책임은 입력을 쓴 쪽에 있다." />
+<QuizBox question="C 적합도 분석이 6개월 전 점수의 근거를 재현할 수 있는 핵심은?" :choices="['브라우저 캐시만 보존한다', '참조한 프로필 버전과 분석 시점 source_snapshot을 함께 남긴다', '원본 user_profile을 절대 수정하지 않는다', '공고를 매번 다시 크롤링한다']" :answer="1" explanation="A의 user_profile_version은 원본 변경 이력을, C의 source_snapshot/input_snapshot은 실행 당시 조립 입력을 보존한다. 두 증거를 함께 남겨 원본이 바뀐 뒤에도 분석 근거를 추적한다." />
 
 <QuizBox question="공통 로그 ai_usage_log의 소유·기록 구조로 옳은 것은?" :choices="['단일 공통 서비스가 모든 영역의 로그를 기록한다', '스키마는 공통이지만 기록기는 영역별로 따로 둔다', 'C가 모든 AI 사용을 집계해 기록한다', '각 영역이 자기만의 별도 로그 테이블을 만든다']" :answer="1" explanation="테이블 스키마는 공통(E/팀장 관리)이지만, 실제 기록은 영역별 서비스가 한다. 이래야 '각 영역이 자기 AI를 소유'하는 수직 분담과 '공통 스키마는 팀 합의'가 충돌하지 않는다." />

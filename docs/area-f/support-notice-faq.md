@@ -222,7 +222,7 @@ if (!internal) {
 | 푸시 발송기(`PushSender`) | 추상화 구현 | `DefaultPushSender`/`LoggingPushSender`/`FcmPushClient`/`VapidWebPushClient` — 실제 외부 발송 키는 환경 의존 |
 | 알림 30초 폴링·읽음·카테고리별 설정 | 구현됨 | SSE 미사용은 의도된 결정 |
 | 사용자 측 답변 초안 노출 | 없음(설계상) | 초안은 상담사 화면 전용 |
-| 파일 첨부(문의) | 미구현 | 프런트 "2차 구현 예정" 더미 |
+| 파일 첨부(문의·추가 메시지) | 구현됨 | 공통 파일 업로드 후 `attachmentFileIds`, 서버 소유권 검증·thread 렌더링 |
 | `notification` 일부 타입(`POST_SUMMARY_READY` 등) | 타입만 선언 | 화면/발송 경로 일부 미연결 |
 
 :::details DB 패치 적용 상태에 대한 정직한 단서

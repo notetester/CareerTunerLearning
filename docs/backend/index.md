@@ -10,7 +10,7 @@ CareerTuner는 채용공고에 맞춰 스펙과 면접 답변을 조정하는 AI
 
 | 항목 | 내용 |
 | --- | --- |
-| 프레임워크 | Spring Boot 4.0.6 |
+| 프레임워크 | Spring Boot 4.1.0 |
 | 언어 | Java 21 |
 | 영속성 | MyBatis (JPA 금지) + MySQL 8 |
 | 포트 | `:8080` (프런트 Vite 프록시가 `/api` 를 여기로 전달) |

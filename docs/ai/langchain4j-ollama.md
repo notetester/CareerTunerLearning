@@ -55,11 +55,11 @@ LLM을 직접 HTTP로 호출하면 매번 다음을 손으로 짜야 한다.
 | 메모리 영속화 | `ai/chat/MyBatisChatMemoryStore` (+`ChatMemoryMapper`) | `ChatMemoryStore` → MySQL JSON 직렬화 | 구현됨 |
 | FAQ 답변 초안 생성 [F] | `admin/chatbot/ai/FaqDraftAiClient` | LangChain4j 미사용, Ollama `/api/chat` 직접 호출 | 구현됨 |
 | 공고추출 로컬 LLM [B] | `applicationcase/service/BLocalLlmClient` | Ollama 직접 호출(자체 파인튜닝 모델) | 구현됨 |
-| 취업분석 OSS 클라이언트 [C] | `analysis/ai/provider/CareerAnalysisOssClient` | OpenAI 호환 엔드포인트, base-url 미설정 시 비활성 | 설계/부분구현 |
-| 자체 커리어전략 LLM [C] | `careertuner-c-career-strategy` (모델), 학습데이터 `ml/career-strategy-llm` | Ollama 서빙 + Fallback 체인 | **계획중·미구현** |
+| 취업분석 OSS 클라이언트 [C] | `analysis/ai/provider/CareerAnalysisOssClient` | OpenAI 호환 엔드포인트, base-url 미설정 시 비활성 | 구현됨 |
+| 자체 커리어전략 LLM [C] | `careertuner-c-career-strategy-3b`, `ml/career-strategy-llm` | LoRA 학습·Ollama 서빙·Fallback 체인 | 학습·연결 검증됨, 기본 provider는 OpenAI |
 
-:::warning 영역 정직성
-챗봇 에이전트(`ai/chat`)는 영역 F 소유다. 본인(영역 C)의 자체 LLM은 아직 **설계 단계**로, `application.yaml`에 provider 토글(`oss`/`openai`)과 base-url 자리만 잡혀 있고 base-url 미설정 시 OpenAI로 동작한다. 면접에서 C 작업을 말할 때는 "LangChain4j 패턴을 챗봇에서 학습해, 같은 로컬 LLM 인프라를 C 분석에 적용하도록 설계했다"가 정확한 서술이다.
+:::warning 영역과 기본값 구분
+챗봇 에이전트(`ai/chat`)는 영역 F 소유다. C는 별도의 OSS client와 학습 모델을 실제 적합도 경로에 연결했다. 다만 `provider=openai`가 저장소 기본값이고, OSS endpoint를 주입한 환경에서만 자체 모델이 활성화된다.
 :::
 
 ## 5. 핵심 동작 원리 (표/작은 코드/단계)
@@ -140,7 +140,7 @@ langchain4j:
 "커뮤니티 챗봇을 `@AiService` 인터페이스(`CommunityChatAgent`)로 정의해 시스템 프롬프트·메모리·도구 호출을 애너테이션으로 선언했습니다. 대화 메모리는 `MessageWindowChatMemory`로 최근 20개를 유지하되, `MyBatisChatMemoryStore`로 MySQL에 JSON 직렬화해 영속화했고, 모델은 Ollama로 사내 서버에서 돌립니다. 도구 호출 폭주를 막으려고 `maxSequentialToolsInvocations`로 캡을 걸었습니다."
 
 **꼬리질문 대응(왜 OpenAI 안 쓰고 로컬?)**
-"챗봇은 호출량이 많아 외부 API면 비용이 선형으로 늘고 사용자 글이 외부로 나갑니다. 그래서 양 많은 작업은 로컬 모델, 정확도가 매출에 직결되는 적합도 분석은 OpenAI로 분리했습니다. 자체 LLM이 미서빙인 환경은 base-url 미설정 시 자동으로 OpenAI 폴백되게 설계했습니다."
+"챗봇은 호출량이 많아 로컬 모델의 비용·프라이버시 이점이 큽니다. C 적합도 분석도 LoRA 모델 경로를 연결했지만, 안정적인 기본값은 OpenAI로 유지했습니다. OSS endpoint가 없는 환경에서는 OpenAI와 규칙 기반 안전망이 서비스 연속성을 지킵니다."
 
 ## 7. 자주 나오는 꼬리질문 + 모범답안
 

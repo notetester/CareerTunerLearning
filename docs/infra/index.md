@@ -13,7 +13,7 @@ CareerTuner는 4개의 런타임 컴포넌트로 돌아간다. 인프라는 이 
 | 컴포넌트 | 기술 | 포트 | 빌드 도구 |
 | --- | --- | --- | --- |
 | backend | Spring Boot 4 + Java 21 + MyBatis | 8080 | Gradle (`bootJar`) |
-| frontend | React 18 + Vite 6 + TS + Tailwind v4 | 5173 | Vite (`vite build`) |
+| frontend | React 19 + Vite 8 + TS + Tailwind v4 | 5173 | Vite (`vite build`) |
 | job-posting-worker | Python Flask 공고추출 | 8091 | pip + Docker |
 | qdrant | RAG 벡터 DB | 6333/6334 | 공식 이미지 |
 

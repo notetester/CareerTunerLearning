@@ -38,9 +38,9 @@
 
 이 분리 덕분에 같은 원점수가 들어오면 총점은 항상 같고, 직무군별 가중치 공정성을 서버가 강제한다. SYSTEM_PROMPT에도 명시돼 있다: "최종 점수는 서버가 다시 계산하므로 criterionScores.rawScore에는 각 기준의 원점수만 0~100 사이 정수로 작성합니다."
 
-### 2.3 트레이드오프 — 결과를 저장하지 않는다
+### 2.3 트레이드오프 — 최신 결과는 저장하되 전체 실행 이력은 아니다
 
-진단 결과(점수·criteria)는 **DB에 저장하지 않는다.** `ai_usage_log`에는 호출 메타데이터(featureType·status·model·토큰)만 남고, 점수 결과 캐시 테이블은 존재하지 않는다. 장점은 단순함과 "항상 최신 프로필 기준으로 평가"이고, 단점은 매번 다시 호출해야 하며 시계열 추적이 불가능하다는 점이다. 또한 크레딧 차감은 `creditUsed=0` 고정 — 프로필 AI는 무료다.
+요약 성공 결과는 `profile_ai_analysis`에 `PROFILE_SUMMARY` 최신 1행으로 저장되고, `profile_version_id`가 평가 입력을 가리킨다. `ai_usage_log`는 별도로 provider·토큰·상태를 기록한다. 새로고침 복원과 C 입력 연결은 가능하지만, 같은 feature의 모든 과거 AI 결과를 append하는 시계열은 아니다.
 
 ## 3. 어떤 기술로 구현했나 (실제 클래스·테이블 근거)
 
@@ -50,7 +50,7 @@
 | 오케스트레이션 | `ProfileServiceImpl` | 동의 게이트 → 평가 위임 → `ai_usage_log` 기록 → 응답 매핑 |
 | 평가 인터페이스 | `ProfileAiService` | `evaluate(UserProfile, featureType)` 단일 메서드 |
 | LLM 경로 (@Primary) | `OpenAiProfileAiService` | 구조화 출력 호출 + 실패 시 폴백 |
-| 규칙엔진 (운영 기본값) | `RuleBasedProfileAiService` | 결정론적 요약·점수 생성 |
+| 규칙엔진 (최종 안전망) | `RuleBasedProfileAiService` | 외부 provider 없이 결정론적 요약·점수 생성 |
 | 직무군 분류 | `JobFamily` (8종 enum) | 키워드 매칭 점수 최댓값으로 분류 |
 | 가중치 정책 | `JobFamilyWeightPolicy` | 8×6 가중치 매트릭스(행 합 100) |
 | 점수 계산 | `ProfileScoreCalculator` | 가중합 총점 — 규칙엔진·검증기가 **공유** |
@@ -132,17 +132,17 @@ LLM 경로에서는 이 자리에 모델이 생성한 자연어 요약이 들어
 | --- | --- |
 | `POST /profile/ai/summary` 엔드포인트 | 구현 완료 |
 | 규칙엔진 요약(항상 동작, `profile-rule-v2`) | 구현 완료 |
-| LLM 요약(키 주입 시 활성, 구조화 출력 + 2차 검증) | 구현 완료, 단 **운영 기본은 키 미발급** |
+| 자체·Claude·OpenAI 요약(설정/선택 시, 구조화 출력 + 2차 검증) | 구현 완료, runtime 설정에 따라 활성 |
 | 2단 폴백 + status 가시성 | 구현 완료 |
 | 동의 게이트(AI_DATA) | 구현 완료 |
 | #3 자소서 키워드 전용 기능 | **미구현** — 요약 `strengths`에 흡수 |
 | #4 경력·프로젝트 키워드 전용 기능 | **미구현** — 요약 `gaps`/`evidence`에 흡수 |
-| 진단 결과 저장/캐시 테이블 | **없음** — 응답으로만 내려감 |
-| `user_profile_version`(분석 재현용 스냅샷) | **미구현** — 단일행 upsert + updated_at만 |
-| 자체 파인튜닝 모델 `careertuner-a-profile-3b`(Qwen2.5-3B LoRA) | **설계만** — 1차 경로로 의도, 키 미발급이라 규칙엔진이 실제 동작 |
+| 진단 결과 저장 | `profile_ai_analysis` 기능별 최신 upsert |
+| `user_profile_version` | 저장·import·AI 평가 입력의 불변 버전 |
+| 자체 파인튜닝 모델 | Qwen3 4B Profile LoRA v4 학습·비교 기록, runtime 기본 활성은 별도 |
 
 :::warning 면접에서 절대 과장하지 말 것
-운영 기본값은 **규칙엔진**이다. API 키가 주입되지 않은 상태에서 요약을 호출하면 `status=SUCCESS`, `model=profile-rule-v2`로 결정론적 결과가 내려간다. "LLM이 요약을 생성한다"가 아니라 "키가 있으면 LLM, 없으면 규칙엔진이 같은 인터페이스로 요약을 생성하고 어느 경우든 서버가 점수를 계산한다"가 정확한 표현이다.
+provider와 모델은 runtime 설정·사용자 선택에 따라 자체→Claude→OpenAI→규칙 안전망 안에서 결정된다. 어느 경로든 서버가 최종 점수를 계산하고 실제 사용 모델을 결과·usage log에 남긴다.
 :::
 
 ## 6. 면접 답변 3단계
@@ -176,7 +176,7 @@ A는 "기반 신뢰 데이터 소유자"이고, `user_profile`은 C(적합도)·
 :::
 
 :::details Q6. 프로필을 수정한 직후 요약을 호출하면 최신 내용이 반영되나요?
-네. 요약 엔드포인트는 별도 바디 없이 `findOrEmpty(userId)`로 **현재 user_profile 1행을 즉시 다시 읽어** 평가합니다. 결과 캐시가 없으므로 항상 최신 프로필 기준입니다. 단점은 매번 다시 호출해야 한다는 것이고, 결과 시계열(예: 지난주 대비 점수 추이)을 보려면 별도 저장이 필요한데 현재는 미구현입니다.
+네. 요약 엔드포인트는 별도 바디 없이 현재 `user_profile`을 읽어 평가하고, 그 입력 객체를 불변 버전으로 고정합니다. 성공 결과는 최신본으로 저장되므로 새로고침 뒤 복원할 수 있지만, 지난주·이번주 모든 실행 결과를 나열하는 시계열은 제공하지 않습니다.
 :::
 
 ## 8. 직접 말해보기
@@ -190,7 +190,7 @@ A는 "기반 신뢰 데이터 소유자"이고, `user_profile`은 C(적합도)·
 
 ## 퀴즈
 
-<QuizBox question="POST /api/profile/ai/summary 요청의 바디는 무엇인가?" :choices="['요약할 이력서 텍스트를 JSON으로 보낸다', '바디 없이 인증 주체만 받고 서버가 현재 user_profile 1행을 다시 읽어 입력으로 쓴다', 'job_posting_id를 보내 공고와 매칭한다', 'criterionScores 배열을 클라이언트가 채워 보낸다']" :answer="1" explanation="엔드포인트는 @AuthenticationPrincipal만 받고, evaluateWithConsent가 findOrEmpty(userId)로 현재 user_profile 1행을 다시 읽어 평가 입력으로 사용한다. 결과 캐시가 없어 항상 최신 프로필 기준이다." />
+<QuizBox question="POST /api/profile/ai/summary 요청의 바디는 무엇인가?" :choices="['요약할 이력서 텍스트를 JSON으로 보낸다', '바디 없이 인증 주체만 받고 서버가 현재 user_profile을 읽어 버전으로 고정한다', 'job_posting_id를 보내 공고와 매칭한다', 'criterionScores 배열을 클라이언트가 채워 보낸다']" :answer="1" explanation="엔드포인트는 인증 사용자와 선택 model query를 받고, 서버가 현재 프로필을 읽어 불변 version을 만든 뒤 평가한다." />
 
 <QuizBox question="프로필 요약에서 총점(completenessScore)은 누가 계산하는가?" :choices="['LLM이 응답에 직접 넣어 보낸다', '프론트엔드가 criteria를 합산한다', '서버의 ProfileScoreCalculator가 직무군 가중치로 가중합한다', 'ai_usage_log 트리거가 DB에서 계산한다']" :answer="2" explanation="뉴로-심볼릭 분리가 핵심이다. 모델은 각 축의 rawScore(0~100)만 만들고, 서버 ProfileScoreCalculator가 직무군별 가중치로 가중합해 총점을 낸다. 이 계산기를 규칙엔진과 검증기가 공유해 재현성을 보장한다." />
 

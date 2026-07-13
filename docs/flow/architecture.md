@@ -28,12 +28,12 @@
 
 | 계층 | 기술 | 포트/위치 | 역할 |
 | --- | --- | --- | --- |
-| 클라이언트 | React 18 · Vite 6 · TS · Tailwind v4 (SPA) | `:5173` (dev) | 화면·상태·`fetch` |
+| 클라이언트 | React 19 · Vite 8 · TS · Tailwind v4 (SPA) | `:5173` (dev) | 화면·상태·`fetch` |
 | 모바일 셸 | Capacitor (WebView) | 네이티브 앱 | 같은 SPA 빌드를 감싼 앱 |
 | 프록시 | Vite dev server | `:5173` → `:8080` | dev 한정 `/api/*` 전달 |
-| API | Spring Boot 4.0.6 · Java 21 (REST) | `:8080` `/api/**` | 인증·검증·비즈니스 |
+| API | Spring Boot 4.1.0 · Java 21 (REST) | `:8080` `/api/**` | 인증·검증·비즈니스 |
 | 영속성 | MyBatis (JPA 금지) | `@Mapper` + XML | SQL ↔ 도메인 매핑 |
-| RDB | MySQL 8 | 약 68개 테이블 | 진실의 원천(source of truth) |
+| RDB | MySQL 8 | 기준 SHA의 정본 DDL 168개 테이블 | 진실의 원천(source of truth) |
 | 벡터DB | Qdrant | `:6333` | 면접 RAG 검색(best-effort) |
 | 비동기 워커 | Python 공고추출 워커 | 별도 프로세스 | OCR·문서텍스트 → 문장분류 |
 | AI 공급자 | OpenAI / Anthropic Haiku / 자체 Ollama(4090) | 외부·원격 | 자연어 생성·요약 |
@@ -62,7 +62,7 @@
    └────────┬─────────────┬─────────────┬───────────┬────────┘
             ▼             ▼             ▼           ▼
         [MySQL 8]     [Qdrant]   [Python 워커]   [AI 공급자]
-        68개 테이블   면접 RAG    OCR·공고추출   OpenAI/Haiku/4090
+        168개 테이블  면접 RAG    OCR·공고추출   외부/자체 provider
 ```
 
 핵심 명제: **표준 경로는 한 줄로 흐른다.** 가지(Qdrant·워커·AI)는 특정 도메인이 필요할 때만 곁가지로 호출하며, 실패해도 표준 경로가 죽지 않도록 best-effort/폴백으로 격리한다.
@@ -166,7 +166,7 @@ AI 오케스트레이터의 진행 스트림(`POST /api/auto-prep/run/stream`, `
 | --- | --- |
 | 4계층 + `ApiResponse` 엔벨로프 전 영역 | 자체 OSS 파인튜닝 모델 학습·서빙(영역별 진행도 상이) |
 | STATELESS JWT + 리프레시 원장 | 일부 영역 실 OpenAI 키 연동 활성화 |
-| MyBatis/MySQL 약 68개 테이블 | (배선·계약은 완성, 키만 꽂으면 동작) |
+| MyBatis/MySQL 기준 SHA의 168개 테이블 | (정본 DDL과 증분 패치로 관리) |
 | Vite 프록시 + CORS + Capacitor 셸 | |
 | AutoPrep 오케스트레이터·SSE | |
 | Qdrant RAG·Python 공고추출 워커 배선 | |
@@ -175,7 +175,7 @@ AI 오케스트레이터의 진행 스트림(`POST /api/auto-prep/run/stream`, `
 "**아키텍처와 계약(4계층·엔벨로프·인증 경계·곁가지 배선)은 완성**돼 있고, 일부 AI 공급자는 키/모델 발급 후 활성화하는 단계입니다. 화면과 API 계약은 실제 LLM과 동일하게 동작합니다."
 :::
 
-테이블 수는 문서마다 집계 기준(공통 `ai_usage_log` 포함 여부 등)이 달라 **약 68개**로 본다. → [데이터 소유권 경계 맵](/flow/data-ownership)
+기준 커밋의 canonical `schema.sql`에는 서로 다른 `CREATE TABLE` 선언이 **168개**다. 이후 패치에 따라 달라질 수 있으므로 항상 [문서 기준선](/project/source-baseline)의 SHA와 함께 말한다. → [데이터 소유권 경계 맵](/flow/data-ownership)
 
 ---
 

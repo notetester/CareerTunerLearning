@@ -17,7 +17,7 @@
 | **dist** | distribution. 빌드 산출물(정적 HTML/JS/CSS) 폴더 |
 | **npm ci** | clean install. `package-lock.json`을 그대로 따라 재현 가능하게 설치 |
 
-CareerTuner 프론트는 Vite 6.4, React 18.3, TypeScript 5.6, Tailwind v4 조합이다.
+CareerTuner 프론트는 Vite 8.1.4, React 19.2.7, TypeScript 7.0.2, Tailwind CSS 4.3.2 조합이다.
 
 ## 3. 왜 필요한가 (없으면 무슨 문제가 생기나)
 

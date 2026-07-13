@@ -46,8 +46,8 @@
 - **공통 엔진은 팀장 소유**: `com.careertuner.ai.prompt` 패키지(`package-info.java`)와 `ai/common` 은 공통 프롬프트 엔진 영역으로 **팀장 소유**입니다. 각 카탈로그는 자기 도메인 하위 폴더(`<도메인>/ai/prompt/`)에만 둡니다. (AGENTS.md의 공통 영역 합의 규칙)
 - **버전 영속화**: `FitAnalysisServiceImpl` 이 결과를 `fit_analysis` 테이블에 저장할 때 `.promptVersion(FitAnalysisPromptCatalog.VERSION)` 로 **그 결과를 만든 프롬프트 버전을 함께 기록**합니다. `CareerAnalysisRunService` 도 `career_analysis_run` 에 동일하게 버전을 남깁니다.
 
-:::tip 구현 vs 설계 구분
-적합도·취업경향·대시보드 카탈로그는 **구현되어 동작 중**입니다. `FIT_EXPLAIN_SYSTEM_PROMPT` 와 `fitExplainUserPrompt(...)` 는 **자체 파인튜닝 모델용으로 정의는 되어 있으나, 학습 데이터(`ml/career-strategy-llm`)와 자체 LLM 서빙은 아직 설계/계획 단계**입니다. 상수는 학습 스크립트와 정합을 맞추기 위해 미리 고정해 둔 것입니다.
+:::tip 구현 상태 구분
+적합도·취업경향·대시보드 카탈로그는 구현되어 동작 중입니다. `FIT_EXPLAIN_SYSTEM_PROMPT`와 `fitExplainUserPrompt(...)`는 Qwen2.5-3B LoRA의 학습·서빙 경로에서도 사용되며, OSS provider는 실제 서비스 경로에 연결돼 있습니다. 저장소 기본 provider가 OpenAI라는 점은 별도입니다.
 :::
 
 ## 5. 핵심 동작 원리 (표/작은 코드/단계)
@@ -138,7 +138,7 @@ system은 **역할과 출력 규칙처럼 매 호출 고정되는 부분**, user
 :::
 
 :::details Q4. train/serve skew를 어떻게 막습니까?
-자체 파인튜닝 모델용 `FIT_EXPLAIN_SYSTEM_PROMPT` 상수가 학습 데이터 생성 스크립트(`ml/career-strategy-llm`의 system 메시지)와 **같은 텍스트**가 되도록 한 출처로 고정합니다. 학습 때 본 system 문장과 서빙 때 보내는 system 문장이 동일해야 모델이 분포 변화를 겪지 않습니다. 이 모델 서빙은 아직 설계 단계지만, 상수를 미리 맞춰 두는 것이 카탈로그 패턴의 확장 포인트입니다.
+자체 파인튜닝 모델용 `FIT_EXPLAIN_SYSTEM_PROMPT`가 학습 데이터 생성과 서빙에서 같은 의미를 유지하도록 한 출처로 관리합니다. 학습 때 본 system 문장과 서빙 때 보내는 문장이 달라지는 train/serve skew를 회귀 검증으로 막습니다.
 :::
 
 :::details Q5. LLM이 규칙을 어겨도 그대로 사용자에게 나가나요?
@@ -158,4 +158,4 @@ system은 **역할과 출력 규칙처럼 매 호출 고정되는 부분**, user
 
 <QuizBox question="CareerTuner에서 FitAnalysisPromptCatalog.VERSION 값은 결과 저장 시 어떻게 활용되나?" :choices="['JWT 토큰에 서명할 때 사용', 'fit_analysis 테이블에 promptVersion으로 함께 저장돼 어떤 프롬프트로 나온 결과인지 추적', 'CORS 허용 오리진 목록에 추가', '프론트 라우팅 키로 사용']" :answer="1" explanation="FitAnalysisServiceImpl이 결과 행을 만들 때 .promptVersion(FitAnalysisPromptCatalog.VERSION)으로 기록합니다. 프롬프트 개정 후 버전별 품질 비교와 롤백 판단의 근거가 됩니다." />
 
-<QuizBox question="자체 파인튜닝 모델용 FIT_EXPLAIN_SYSTEM_PROMPT를 학습 스크립트의 system 메시지와 동일한 한 출처로 고정하는 이유를 한 문단으로 설명하라." explanation="학습 때 모델이 본 system 문장과 서빙 때 보내는 system 문장이 다르면 입력 분포가 어긋나 성능이 무너지는 train/serve skew가 발생합니다. 동일 상수를 양쪽이 참조하게 하면 학습·서빙 프롬프트가 항상 일치해 이 불일치를 원천 차단할 수 있고, 프롬프트 카탈로그가 그 단일 출처 역할을 합니다. CareerTuner에서 자체 LLM 서빙 자체는 아직 설계 단계지만 상수를 미리 맞춰 둔 것이 이 확장 포인트입니다." />
+<QuizBox question="자체 파인튜닝 모델용 FIT_EXPLAIN_SYSTEM_PROMPT를 학습 스크립트의 system 메시지와 동일한 한 출처로 고정하는 이유를 한 문단으로 설명하라." explanation="학습과 서빙의 system 문장이 달라지면 입력 분포가 어긋나는 train/serve skew가 생깁니다. 동일한 의미와 버전을 공유하고 회귀 검증하면 학습된 행동과 실제 요청 계약의 불일치를 조기에 찾을 수 있습니다." />

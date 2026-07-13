@@ -39,7 +39,7 @@ const needsBFailureLogs = needsJobAnalysis || needsCompanyAnalysis;
 
 ## 3. 어떤 기술로 구현했나 (실제 클래스 · 라우팅 근거)
 
-- **스택**: React 18 + React Router(`react-router`) + TypeScript + Tailwind v4. UI 프리미티브는 shadcn 계열(`Button`/`Card`/`Input`/`Textarea`/`Select`/`Checkbox`/`AlertDialog`/`Badge`), 아이콘은 `lucide-react`.
+- **스택**: React 19 + React Router 8 + TypeScript + Tailwind v4. UI 프리미티브는 shadcn 계열(`Button`/`Card`/`Input`/`Textarea`/`Select`/`Checkbox`/`AlertDialog`/`Badge`), 아이콘은 `lucide-react`.
 - **라우팅(`app/routes.ts`)**: 상세는 3중 라우트가 같은 컴포넌트에 매핑된다.
 
   | path | 의미 |
