@@ -53,7 +53,7 @@ AutoPrep은 이 네 가지를 **서버 한 곳**으로 모은다. 프론트는 "
 :::warning 구현 vs 계획 구분
 - **구현됨**: 오케스트레이터 골격, 의존 그래프 병렬 실행, SSE 진행 보고, FIT/JOB 등 핸들러 연결, 부분 실패 시 FAILED 기록 후 완주.
 - **부분/진행 중**: 일부 파트 핸들러는 `enabled()=false`로 SKIPPED 처리(준비중)될 수 있다 — 오케는 그대로 완주한다.
-- **계획 단계**: C 영역 자체 LLM 커리어전략 모델(`careertuner-c-career-strategy`)은 설계 단계이고, 현재 FIT 채점의 LLM 부분은 OpenAI 기반이다.
+- **설정 활성 경로**: C 영역 자체 모델은 학습·연결 검증을 마쳤고 `provider=oss`와 endpoint 설정으로 사용할 수 있다. 저장소 기본 FIT provider는 OpenAI다.
 :::
 
 ## 5. 핵심 동작 원리 (단계 + 코드)

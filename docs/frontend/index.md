@@ -1,6 +1,6 @@
 # 프론트엔드 개요
 
-> CareerTuner 프론트엔드는 React 18 + Vite 6 + TypeScript + Tailwind v4로 만든 SPA이고, 기능별로 폴더를 쪼갠 feature-first 구조에 Context로 인증·Zustand로 나머지 상태를 관리하며, 한 곳의 API 레이어가 토큰과 401 자동 리프레시까지 책임진다.
+> CareerTuner 프론트엔드는 React 19.2.7 + Vite 8.1.4 + TypeScript 7.0.2 + Tailwind CSS 4.3.2로 만든 SPA이고, 기능별로 폴더를 쪼갠 feature-first 구조에 Context로 인증·Zustand로 나머지 상태를 관리하며, 한 곳의 API 레이어가 토큰과 401 자동 리프레시까지 책임진다.
 
 이 페이지는 프론트엔드 영역의 입구다. 무엇으로 만들었고, 왜 그렇게 나눴고, 어떤 순서로 공부해야 면접에서 막힘없이 설명할 수 있는지를 정리한다. 세부 기술은 각 하위 페이지로 연결된다.
 
@@ -10,8 +10,8 @@
 
 | 항목 | 기술 / 버전 | 한 줄 역할 |
 | --- | --- | --- |
-| UI 라이브러리 | React 18.3 | 컴포넌트 기반 화면 구성 |
-| 빌드 도구 | Vite 6.4 | 개발 서버(HMR) + 프로덕션 번들 |
+| UI 라이브러리 | React 19.2.7 | 컴포넌트 기반 화면 구성 |
+| 빌드 도구 | Vite 8.1.4 | 개발 서버(HMR) + 프로덕션 번들 |
 | 언어 | TypeScript 5.6 | 타입 안정성, `tsc --noEmit` 검증 |
 | 스타일 | Tailwind v4.1 (`@tailwindcss/vite`) | 유틸리티 클래스 + CSS 변수 다크모드 |
 | 라우팅 | React Router 7 | `createBrowserRouter` 기반 경로 |
@@ -29,7 +29,7 @@
 - **데모를 코드 변경 없이 만든다.** `VITE_USE_MOCK` 토글 하나로 백엔드 없이 mock 응답만으로 동작하는 빌드를 뽑아 GitHub Pages·자체완결 APK로 배포한다.
 
 :::tip 면접에서의 한 줄
-"React 18 + Vite + TS + Tailwind v4 SPA이고, 웹과 모바일 앱이 Capacitor로 같은 코드를 공유합니다. 기능 단위로 폴더를 쪼갠 feature-first 구조에, 인증만 Context로 두고 나머지는 Zustand로 관리합니다."
+"React 19 + Vite 8 + TypeScript SPA이고, 웹과 모바일 앱이 Capacitor로 같은 코드를 공유합니다. 기능 단위로 폴더를 쪼갠 feature-first 구조에, 인증만 Context로 두고 나머지는 Zustand로 관리합니다."
 :::
 
 ## 3. feature-first 구조 (실제 폴더)

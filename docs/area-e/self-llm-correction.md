@@ -1,192 +1,117 @@
-# 자체 LLM 첨삭 모델
+# E 자체 LLM 첨삭
 
-> 첨삭은 "분류"가 아니라 "문장 생성"이다. 그래서 E는 3B급 공통 모델이 아닌 8B급 도메인 예외 모델을 주력으로 삼고, `Qwen3-8B → 4B → Qwen2.5-3B → 규칙엔진 → OpenAI`의 5단 폴백을 설계했다. 다만 현재 코드는 OpenAI Responses 단일 경로 + 3회 재시도이며, 자체 모델·폴백 디스패처는 진입점만 준비된 상태다.
+> 첨삭은 Qwen2.5-3B Correction LoRA delivery-s를 실제 provider로 연결했다. `AUTO`는 CareerTuner 자체 모델 → Claude → OpenAI 순서이며, 사용자는 특정 tier부터 시작하도록 선택할 수 있다. 모두 실패하면 원문 복제를 성공으로 가장하지 않고 `AI_UNAVAILABLE`로 끝낸다.
 
-## 1. 한 줄 정의 · 이 페이지가 답하는 면접 질문
+## 왜 첨삭 전용 LoRA인가
 
-영역 E의 첨삭(#24~27)을 **자체 LLM 관점**에서 다룬다. 즉 "어떤 모델로 사용자의 자기소개서·면접답변·이력서·포트폴리오를 고치는가, 왜 그 모델을 골랐고, 실패하면 어떻게 떨어지는가(fallback)"를 설명한다.
+면접 답변·자기소개서·이력서·포트폴리오는 문서 종류가 다르지만 입력과 출력 계약은 같다. 원문과 컨텍스트를 받아 다음 다섯 결과를 만든다.
 
-면접에서 이렇게 물어볼 수 있다:
+- 개선문
+- 요약
+- 발견한 문제
+- 변경 이유
+- 사실 근거가 더 필요한 제안
 
-- "팀 공통 베이스를 Qwen2.5-3B로 통일했다는데, 왜 E만 Qwen3-8B를 쓰나요?"
-- "자체 모델이 죽으면 서비스가 멈추나요? 폴백을 어떻게 설계했나요?"
-- "지금 실제로 자체 모델이 돌고 있나요, 아니면 계획인가요?" (← 정직하게 답해야 하는 핵심)
+따라서 유형별 모델 네 개 대신 하나의 첨삭 모델과 `correctionType` 분기를 선택했다. 데이터가 적은 상황에서 모델을 나누면 각 모델의 학습 신호가 더 약해지고 배포·평가 비용도 네 배가 된다.
 
-:::tip 같이 보면 좋은 페이지
-첨삭 도메인 자체의 입출력·저장 흐름은 [AI 면접답변 첨삭](/area-e/ai-answer-correction), 데이터 모델은 [첨삭 데이터 모델](/area-e/correction-data-model), 구조화 출력 강제 기법은 [공통 구조화 출력](/ai/openai-structured-output)에서 다룬다. 이 페이지는 그 위에서 **모델 선택과 폴백**에 집중한다.
-:::
+## 모델 상태
 
-## 2. 왜 이렇게 설계했나 (의도 · 트레이드오프)
+| 항목 | 현재 상태 |
+| --- | --- |
+| 베이스 | Qwen2.5-3B 계열 |
+| 방식 | LoRA/QLoRA SFT와 repair 평가 |
+| 서비스 연결 | `SelfLlmCorrectionProvider` |
+| AUTO 순서 | CareerTuner → Claude → OpenAI |
+| 명시 선택 | 선택한 tier부터 하위 tier로 폴백 |
+| 전부 실패 | `AI_UNAVAILABLE`, 저장·과금 없음 |
+| Mock | 의도적으로 없음 |
 
-### 2-1. 왜 8B인가 — task 성격이 모델 크기를 정한다
+Qwen3-8B 후보 실험도 있지만 최종 delivery와 비교 실험을 구분해야 한다. “E는 8B 모델만 운영한다”거나 “모든 첨삭이 자체 모델을 탄다”고 말하지 않는다.
 
-다른 영역의 자체 모델 task는 대부분 **추출·분류·점수화**다(A=직무군 분류, B=공고 문장 분류, D=답변 채점). 이런 task는 출력이 라벨/숫자/짧은 구조이므로 3B급 경량 모델로도 충분하다.
+## 런타임 디스패처
 
-첨삭은 다르다. 사용자가 쓴 문장을 **실제로 다시 쓰는 생성형 task**라서, 문장 생성력과 지시 이행력(원문을 보존하라, 사실을 지어내지 마라 같은 제약을 지키는 능력)이 핵심이다. 운영안은 이 차이를 명시한다 — "E 파트는 단순 분류보다 자기소개서와 면접 답변을 실제 문장으로 고치는 생성형 첨삭 task가 중심이므로, 3B급 초경량 모델보다 문장 생성력과 지시 이행력이 높은 8B급 모델이 유리하다."
-
-| 항목 | 팀 공통 기본값 | E의 선택 |
-| --- | --- | --- |
-| 베이스 모델 | Qwen2.5-3B (통일 파이프라인) | **Qwen3-8B 계열 LoRA** (도메인 예외) |
-| task 성격 | 분류·추출·점수 | **문장 재작성(생성)** |
-| 우선 가치 | 절차 통일·빠른 콜드스타트 | **생성 품질·첨삭 이유의 구체성** |
-| 트레이드오프 | 저사양 친화 | VRAM·서빙 비용 증가 |
-
-이 8B 선택은 "팀 표준을 깬다"는 점에서 비용이 있다. 그래서 운영안은 이를 **"첨삭 품질 때문에 허용한 도메인 예외"** 로 규정하고, 모델 카드에 예외 사유와 서빙 사양을 기록하도록 못 박았다. 표준을 깨되, 깬 이유를 문서로 책임지는 방식이다.
-
-### 2-2. 왜 5단 폴백인가 — 생성 품질 ↔ 가용성의 균형
-
-8B 모델은 품질은 좋지만 무겁다. 개인 PC나 무료 서버에서는 못 띄울 수 있고, 발표 시연 중에 죽으면 곤란하다. 그래서 "품질이 가장 좋은 자체 모델"을 맨 위에 두되, 사양·실패 상황에 따라 **점점 가벼운 모델 → 규칙엔진 → 외부 API**로 떨어지는 사다리를 만들었다. 핵심 원칙: **어느 단계로 떨어지든 결과는 같은 JSON 스키마를 통과해야 저장된다.** 폴백이 출력 모양을 바꾸지 않으므로, 상위 저장·표시 코드는 어느 모델이 답했는지 몰라도 된다.
-
-## 3. 어떤 기술로 구현했나 (실제 클래스 · 테이블 근거)
-
-### 3-1. 설계상의 모델 사다리 (운영안 기준)
-
-운영안 9.E절은 5단 폴백을 **우선순위 표**로 정의한다:
-
-| 순위 | 모델 | 역할 | 사용 상황 |
-| --- | --- | --- | --- |
-| 1 | **Qwen3-8B 계열 E LoRA** | E 주력 첨삭 모델 | 문장 품질·첨삭 이유 구체성이 필요할 때 |
-| 2 | **Qwen3-4B-Instruct 계열 E LoRA** | 경량 자체 모델 | 개인 PC·무료 서버·저사양 시연 |
-| 3 | **팀 공통 Qwen2.5-3B E LoRA** | 통일 파이프라인 재사용 | 절차 검증·빠른 콜드스타트 |
-| 4 | **규칙 기반 첨삭 엔진** | 위험 표현·길이·키워드 검사 | 자체 모델 결과 검증 또는 최소 폴백 |
-| 5 | **OpenAI 기반 첨삭** | 품질 보장용 최종 폴백 | 자체 모델 반복 실패·시연 안정성 필요 |
-
-설계상 모델명은 `careertuner-e-correction`(base_model `qwen3-8b-instruct`)으로, LoRA 어댑터를 만들어 팀 공통 **Ollama**(merge → GGUF) 흐름으로 서빙하는 것을 가정한다.
-
-### 3-2. 실제 런타임 폴백 흐름 (운영안 11.10절 vs 코드)
-
-운영안 11.10절의 런타임 폴백 순서:
+`CorrectionAiClient`가 공급자 선택의 단일 진입점이다.
 
 ```text
-1. E 자체 모델 재시도 1회
-2. 경량 E 모델 또는 팀 공통 Qwen2.5-3B E adapter
-3. 규칙 기반 첨삭 엔진
-4. OpenAI 기반 첨삭
-5. 실패 상태 저장 + 사용자 재시도 안내
+RequestedAiModel.AUTO
+  -> CAREERTUNER
+  -> CLAUDE
+  -> OPENAI
+
+RequestedAiModel.CLAUDE
+  -> CLAUDE
+  -> OPENAI
 ```
 
-그런데 **실제 코드에는 이 디스패처가 없다.** 첨삭의 단일 진입점은 `CorrectionAiClient.correct()`이고, 이 클래스는 자체 모델을 거치지 않고 **곧장 OpenAI Responses API(`/responses`)** 를 호출한다. 즉 위 5단 사다리에서 **현재 살아 있는 것은 5번(OpenAI)뿐**이며, 1~4번은 설계 문서에만 있다.
+명시 `CAREERTUNER`는 전역 self 토글이 꺼져 있어도 endpoint가 설정돼 있으면 자체 모델을 시도한다. 사용자가 특정 모델을 검증하려는 의도를 존중하기 위해서다.
 
-### 3-3. `CorrectionAiClient` — 현재 유일하게 동작하는 경로
+## 자체 모델 검증과 repair
 
-`backend/.../correction/ai/CorrectionAiClient.java`의 핵심 사실:
+작은 모델은 형식을 어길 수 있으므로 단순 재호출보다 오류 정보를 다음 시도에 전달하는 repair 흐름을 둔다.
 
-- **공통 OpenAI 설정 재사용:** `OpenAiProperties`(`careertuner.openai`)를 그대로 쓴다. model 기본 `gpt-5`, timeout 300초. **E 전용 키가 아니라 전사 공통 OpenAI 설정 공유.**
-- **구조화 출력 강제:** `text.format.type = "json_schema"`, `strict: true`, `correctionSchema()`. 5개 필드(`improvedText`, `summary`, `issues`, `changeReasons`, `suggestions`) 전부 `required` + `additionalProperties: false`.
-- **재시도 3회:** `MAX_ATTEMPTS = 3`, 지수 백오프 `300ms * attempt`. 재시도 대상은 HTTP 408/409/429/5xx + 메시지에 `timeout`/`temporarily` 포함. 타임아웃은 재시도 없이 즉시 실패.
-- **폴백 없음:** 키 미설정 시 즉시 `INTERNAL_ERROR "OpenAI API key is not configured."`. mock·룰베이스 더미 응답이 없다.
+1. 자체 모델 응답을 파싱한다.
+2. 필수 필드·원문 보존·출력 제한을 검사한다.
+3. 잘못된 출력이면 오류와 이전 출력을 repair context로 만든다.
+4. 남은 시도와 전체 시간 예산 안에서 다시 호출한다.
+5. 네트워크·모델 실패 또는 예산 소진이면 다음 provider로 이동한다.
 
-여기서 "3회 재시도"는 운영안 11.10절의 "1. 자체 모델 재시도 1회"와는 다른 층위다. 코드의 재시도는 **OpenAI 호출 자체의 일시 오류 복구**이고, 운영안의 재시도는 **모델 단계 간 폴백**이다. 면접에서 이 둘을 섞어 말하지 않도록 주의.
+per-attempt timeout은 남은 전체 시간 예산보다 길어지지 않게 자른다. 재시도가 사용자 요청을 무한히 붙잡지 않도록 하기 위한 경계다.
 
-### 3-4. 원문 보존 가드레일 — 모델이 바뀌어도 지켜야 할 계약
+## warmup
 
-자체 모델로 가든 OpenAI로 가든, 첨삭이 지켜야 할 불변 규칙은 시스템 프롬프트에 박혀 있다(`CorrectionPromptCatalog`, `VERSION = "e-correction-v1"`):
+첨삭 페이지 진입 시 `POST /api/corrections/warmup`을 best-effort로 호출한다. 자체 모델 cold start를 사용자 실행 전에 당겨 보지만 warmup 실패가 페이지 자체를 막지는 않는다. 실제 요청은 warmup 진행 중이면 설정한 범위 안에서 기다린 뒤 provider 체인을 수행한다.
 
-```text
-Improve only the user's existing material...
-Do not invent achievements, metrics, employers, projects, or experiences.
-If a stronger sentence needs missing evidence, keep it as a suggestion
-instead of adding false facts.
-```
+## 왜 Mock을 두지 않았나
 
-근거 없는 강화는 본문(`improvedText`)이 아니라 제안(`suggestions`)으로만 내보낸다. 이 가드레일은 모델 선택과 독립적인 **도메인 계약**이라, 향후 자체 8B 모델 LoRA 학습 데이터셋도 이 규칙을 따르도록 만들어야 한다(허위 사실 생성 = 채용 리스크).
+첨삭은 사실을 재구성하는 생성 작업이다. 규칙 기반 더미가 그럴듯한 성과나 경력을 만들어 성공 응답으로 보이면 사용자에게 더 위험하다. 그래서 모든 실 provider가 실패하면 다음을 지킨다.
 
-## 4. 동작 원리 (흐름 · 표 · 작은 코드)
+- 성공 결과를 저장하지 않는다.
+- 크레딧이나 사용권을 차감하지 않는다.
+- 사용자는 일시적 이용 불가 오류를 받는다.
+- 실패 사용량 로그는 운영 추적을 위해 남긴다.
 
-현재 코드가 실제로 첨삭을 만드는 경로(`CorrectionService.create` → `CorrectionAiClient.correct`)를 단계로 보면:
+가용성보다 거짓 성공 방지를 우선한 선택이다.
 
-1. **검증·정규화** — `correctionType` 화이트리스트, `originalText` 최대 12000자, `sourceType` 기본 `DIRECT_INPUT`, 지원 건 있으면 소유권 위임 검증.
-2. **featureType 산정** — `"CORRECTION_" + correctionType` (예: `CORRECTION_SELF_INTRO`). 사용량 로그·과금 정책의 매칭 키.
-3. **AI 호출** — `aiClient.correct(...)` → OpenAI Responses, structured output 5필드.
-4. **사용량 로그** — 성공/실패 모두 `ai_usage_log`에 기록(별도 트랜잭션 `REQUIRES_NEW`).
-5. **저장** — `correction_request`에 원문·개선안·`result_json` append-only 저장.
+## 모델 선택 UX
 
-자체 모델이 들어온다면, 이 흐름에서 **바뀌는 곳은 3번 한 군데뿐**이다. `CorrectionAiClient`를 폴백 디스패처로 바꿔, 같은 입력을 받아 같은 5필드를 돌려주면 된다. 의사코드로 표현하면:
+프런트 `ModelPicker`는 `AUTO`, `CAREERTUNER`, `CLAUDE`, `OPENAI`를 제공한다. 기본값은 AUTO지만 사용자가 결과가 마음에 들지 않으면 다른 모델을 선택해 다시 실행할 수 있다.
 
-```text
-correct(command):
-    for model in [E_8B, E_4B, COMMON_3B, RULE_ENGINE, OPENAI]:
-        try:
-            payload = model.run(command)        # 같은 입력
-            if schemaValid(payload):            # 같은 5필드 JSON
-                return payload                  # 어디서 왔든 동일 모양
-        except (down | invalidJson | lowConfidence):
-            continue                            # 다음 단계로
-    return saveFailureAndAskRetry()
-```
+재시도 시 최초 모델을 기본 선택으로 유지하는 것과 모델 변경을 금지하는 것은 다르다. UI는 선택권을 유지하며, 서버 멱등 계약은 **같은 요청 키**만 replay한다. 다른 모델로 새 결과를 원하면 새로운 실행 요청이 된다.
 
-설계가 이 모양을 의도했기 때문에, `CorrectionAiClient`는 "OpenAI 클라이언트"가 아니라 **"폴백 디스패처가 들어갈 단일 진입점"** 으로 위치를 잡아 둔 것이다. 지금은 그 진입점에 OpenAI 단일 구현만 꽂혀 있다.
+## 과금과 provider의 독립성
 
-:::details 폴백 트리거 조건(운영안 5.4 / 7.4절)
-운영안은 다음 중 하나라도 발생하면 폴백하도록 정의한다 — 자체 모델 호출 실패, JSON 스키마 검증 실패, 점수/값 범위 오류, 응답 품질 미달(confidence 기준 미만). 그리고 **폴백 결과도 동일한 E JSON 스키마를 통과해야 저장**한다. 즉 폴백은 "더 나쁜 답을 그냥 받는 것"이 아니라 "기준을 통과하는 답을 다른 경로에서 얻는 것"이다.
-:::
+어느 provider를 타더라도 다음 계약은 같다.
 
-## 5. 구현 상태 (됨 vs 계획) — 정직한 구분
+- 실행 전 비용 고지와 preflight
+- 유효한 payload만 성공으로 인정
+- 실제 token usage를 기반으로 차감
+- 결과·사용량 로그·과금을 한 트랜잭션에서 확정
+- 요청 키 재전송은 기존 결과 replay
 
-이 페이지에서 가장 중요한 절이다. 면접에서 "다 만들었냐"는 질문에 과장 없이 답하려면 경계가 분명해야 한다.
+provider가 바뀌어도 과금 의미가 바뀌지 않게 모델 계층과 정책 계층을 분리했다.
 
-### 구현 완료 (코드 실재)
+## 면접 답변
 
-- **OpenAI Responses 단일 첨삭 경로** — structured output(json_schema strict) + 3회 재시도 + 원문 보존 프롬프트 + `result_json` 저장 + 사용량 로그(별도 트랜잭션). `/api/corrections` 실재(생성/목록/단건).
-- **폴백이 꽂힐 단일 진입점** `CorrectionAiClient` — 입력·출력 계약이 모델 교체에 견디도록 설계됨.
+> "E 첨삭은 Qwen2.5-3B LoRA를 학습해 `SelfLlmCorrectionProvider`로 연결했고, AUTO에서 자체 모델·Claude·OpenAI 순서로 폴백합니다. 사용자는 특정 모델부터 시작할 수도 있습니다. 작은 모델의 JSON 오류는 이전 출력과 오류를 넣은 repair 재시도로 교정하되 전체 시간 예산을 넘기지 않습니다. 전 provider 실패 시에는 거짓 개선문을 성공으로 저장하는 Mock을 쓰지 않고 오류로 끝내며 과금하지 않습니다."
 
-### 계획 / 진행중 (근거 있는 갭)
+## 꼬리질문
 
-| 항목 | 상태 | 근거 |
-| --- | --- | --- |
-| Qwen3-8B/4B E LoRA 자체 모델 | **미연동** | 코드는 OpenAI 단일 경로. 자체 모델 호출 코드 없음 |
-| 5단 폴백 디스패처 | **미구현** | 5단 중 5번(OpenAI)만 동작. 1~4는 운영안에만 존재 |
-| 규칙 기반 첨삭 검증 엔진(4번) | **미구현** | 위험 표현·길이·키워드 검사 로직 부재 |
-| 첨삭 mock/룰베이스 폴백 | **부재** | 키 없으면 첨삭 전체 불가(타 영역엔 Mock/Oss 폴백 있음) |
-| 출력 6필드 운영안 계약 | **불일치** | 운영안 JSON(`corrected_text`/`risk_flags`/`confidence` 등)과 코드 5필드가 다름. **코드 5필드 기준** |
+### 자체 모델을 왜 항상 강제하지 않습니까?
 
-:::warning 정직하게 말할 것
-"자체 모델로 첨삭한다"가 아니라 **"자체 모델을 주력으로 두는 폴백 구조를 설계했고, 현재는 그 사다리의 최종 단(OpenAI)만 배선되어 동작한다. `CorrectionAiClient`는 자체 모델·폴백이 들어갈 진입점으로 미리 만들어 뒀다"** 가 사실에 맞는 표현이다. 모델명 `careertuner-e-correction`은 운영안상 OpenAI 모델에도 매핑되어 있어, "동작 중"으로 오해하기 쉬우니 주의.
+상시 endpoint 가용성과 품질은 배포 환경마다 다르다. AUTO는 설정된 자체 모델을 우선하되 장애 시 외부 provider로 연속성을 확보하고, 명시 선택은 사용자의 비교 의도를 반영한다.
 
-또 하나: 자체 모델 연동 여부와 **과금 차감 미배선**은 별개 갭이다. 첨삭을 실행해도 `ai_usage_log`·`correction_request`만 쌓이고 `users.credit`은 깎이지 않는다(차감 엔진은 완성·테스트 통과했으나 호출처가 test에만 존재). 자세한 내용은 [크레딧 시스템](/area-e/credit-system) 참고.
-:::
+### Claude를 선택했는데 실패하면 어떻게 됩니까?
 
-## 6. 면접 답변 3단계
+선택 tier부터 하위 순서를 적용하므로 OpenAI로 폴백한다. CAREERTUNER로 되돌아가지는 않는다.
 
-**1단계 — 무엇을:** "E 첨삭은 사용자의 자기소개서·면접답변·이력서·포트폴리오 원문을 사실 날조 없이 다듬는 기능입니다. 이걸 자체 LLM으로 운용하는 것을 목표로, Qwen3-8B 기반 도메인 모델을 주력으로 잡았습니다."
+### 형식 오류도 바로 다음 provider로 넘깁니까?
 
-**2단계 — 왜:** "첨삭은 분류가 아니라 문장 재작성이라 3B급보다 8B급의 생성력·지시 이행력이 필요했습니다. 팀 공통 베이스는 Qwen2.5-3B지만, E는 품질 때문에 8B를 도메인 예외로 허용하고 모델 카드에 사유를 기록했습니다. 무거운 만큼 가용성을 위해 8B → 4B → 공통 3B → 규칙엔진 → OpenAI의 5단 폴백을 설계했고, 어느 단계로 떨어지든 같은 JSON 스키마를 통과해야 저장하도록 계약을 고정했습니다."
+자체 tier 안에서 허용된 횟수와 시간 예산 동안 repair를 먼저 시도한다. 복구하지 못하면 다음 tier로 넘어간다.
 
-**3단계 — 현재 상태(정직):** "현재 코드는 그 사다리의 최종 단인 OpenAI Responses 경로만 배선되어 있고, structured output·3회 재시도·원문 보존 프롬프트까지 동작합니다. 자체 8B 모델과 폴백 디스패처는 아직 미연동이지만, `CorrectionAiClient`를 그 진입점으로 미리 설계해 둬서, 자체 모델은 이 진입점 안에서 OpenAI 호출만 교체하면 들어올 수 있는 구조입니다."
+### 모델이 성과 숫자를 새로 만들면요?
 
-## 7. 꼬리질문 + 모범답안
+프롬프트의 사실 보존 규칙, 출력 parser와 payload validation을 통과하지 못하게 한다. 근거가 필요한 강화는 개선문이 아니라 suggestion으로 분리한다.
 
-**Q1. 팀 공통이 3B인데 E만 8B면 파이프라인이 갈라지지 않나요?**
-갈라지는 비용을 인정하고 통제하는 방식입니다. 학습·서빙 절차는 공통(LoRA → Ollama merge → GGUF)을 따르되, 모델 크기만 예외로 두고 그 예외를 모델 카드에 사유·서빙 사양과 함께 기록합니다. 폴백 3번에 **공통 Qwen2.5-3B 어댑터**를 넣어, 8B가 못 뜨는 환경에서도 공통 파이프라인으로 콜드스타트할 수 있게 한 것도 갈라짐을 메우는 장치입니다.
+<QuizBox question="현재 CorrectionAiClient의 AUTO 순서는?" :choices="['OpenAI만 호출', 'CareerTuner 자체 모델 → Claude → OpenAI', '규칙 Mock → OpenAI', 'Claude → CareerTuner → Mock']" :answer="1" explanation="DEFAULT_ORDER는 CAREERTUNER, CLAUDE, OPENAI이며 모든 tier 실패 시 AI_UNAVAILABLE로 끝난다." />
 
-**Q2. 자체 8B 모델을 호출하는 코드가 없는데 어떻게 "설계했다"고 말하나요?**
-설계의 증거는 두 가지입니다. (1) 운영안에 5단 폴백 순서·트리거 조건·모델 우선순위 표가 명시돼 있고, (2) 코드의 `CorrectionAiClient`가 입력(`CorrectionCommand`)·출력(`CorrectionPayload` 5필드)을 모델 교체에 견디도록 캡슐화해, 폴백 디스패처가 들어갈 자리를 비워 뒀습니다. 동작 여부는 정직하게 "OpenAI 단일 경로 + 3회 재시도가 현재 유일하게 동작한다"고 말합니다.
-
-**Q3. 폴백마다 출력 품질이 다를 텐데 저장 일관성은 어떻게 보장하나요?**
-"폴백 결과도 동일한 JSON 스키마를 통과해야 저장한다"가 원칙입니다. 어느 모델이 답하든 5필드(`improvedText`/`summary`/`issues`/`changeReasons`/`suggestions`)를 채워 스키마 검증을 통과해야만 `correction_request`에 들어갑니다. OpenAI 경로에서는 이미 `strict json_schema`로 이걸 강제하고, `improvedText`가 비면 `INTERNAL_ERROR`로 막습니다. 자체 모델이 들어와도 같은 검증 게이트를 통과시키면 됩니다.
-
-**Q4. 자체 모델이 사실을 지어내면(hallucination) 채용 리스크 아닌가요?**
-그래서 모델 선택과 무관한 **도메인 계약**을 시스템 프롬프트에 박았습니다 — 성과·수치·회사·프로젝트를 지어내지 말고, 근거가 부족한 강화는 본문이 아니라 `suggestions`로만 내보내라. 자체 8B LoRA를 학습할 때도 이 규칙을 따르는 데이터셋으로 파인튜닝해야 합니다. 또 `changeReasons`로 변경 이유를 따로 제공해 사용자가 검증 후 선택 반영하게 하므로, 첨삭이 원문을 덮어쓰지 않습니다.
-
-**Q5. 왜 첨삭에는 mock 폴백을 안 두나요? 다른 영역은 두던데.**
-첨삭은 사실 생성 책임이 무거워서, 룰베이스 더미 응답이 오히려 위험합니다. 그럴듯하지만 근거 없는 문장을 사용자가 실제 지원서에 쓸 수 있기 때문입니다. 그래서 키가 없으면 차라리 명시적으로 실패시키고, 품질 보장이 가능한 OpenAI를 **최종 폴백**으로만 둡니다. 가용성은 mock이 아니라 5단 모델 사다리로 확보하는 설계입니다.
-
-**Q6. 5단 폴백을 실제로 붙인다면 무엇부터 하시겠어요?**
-`CorrectionAiClient.correct()` 내부를 디스패처로 바꾸고, 각 단계(8B/4B/3B/규칙/OpenAI)를 같은 인터페이스(입력 `CorrectionCommand`, 출력 `CorrectionPayload`)로 구현해 우선순위대로 시도합니다. 각 단계 결과는 스키마 검증 + confidence 기준을 통과해야 다음으로 안 넘어가게 하고, 어떤 모델·provider가 최종 응답했는지를 `ai_usage_log`(model/provider/fallback 여부)에 기록해 관리자 화면에서 폴백 발생률을 볼 수 있게 합니다.
-
-## 8. 직접 말해보기
-
-다음을 막힘없이 설명할 수 있으면 이 페이지를 이해한 것이다:
-
-1. E가 팀 공통 3B 대신 8B를 고른 이유를 task 성격(분류 vs 생성)으로 설명하기.
-2. 5단 폴백 순서를 외워서 말하고, "어느 단계든 같은 JSON 스키마 통과"라는 불변식이 왜 중요한지 말하기.
-3. 운영안의 "폴백"과 코드의 "3회 재시도"가 다른 층위임을 구분해서 말하기.
-4. "자체 모델 동작 중"이 아니라 "OpenAI 단일 경로만 배선됨, 진입점은 폴백용으로 설계됨"이라고 정직하게 경계 긋기.
-
-## 퀴즈
-
-<QuizBox question="E 첨삭이 팀 공통 Qwen2.5-3B 대신 Qwen3-8B를 주력 후보로 삼은 핵심 이유는?" :choices="['8B가 토큰당 비용이 더 싸기 때문', '첨삭은 분류가 아니라 문장 재작성(생성)이라 생성력·지시 이행력이 더 필요하기 때문', 'OpenAI가 8B만 지원하기 때문', '3B는 한국어를 지원하지 않기 때문']" :answer="1" explanation="첨삭은 라벨/점수를 내는 분류가 아니라 사용자 문장을 실제로 다시 쓰는 생성형 task다. 그래서 3B급보다 문장 생성력과 지시 이행력이 높은 8B급이 유리하고, 이는 팀 표준을 깬 '도메인 예외'로 모델 카드에 사유를 기록한다." />
-
-<QuizBox question="현재 실제 코드(CorrectionAiClient) 기준으로 첨삭은 어떻게 동작하는가?" :choices="['Qwen3-8B 자체 모델이 1차로 답하고 실패 시 OpenAI로 폴백한다', '5단 폴백 디스패처가 완전히 구현되어 모든 단계가 동작한다', 'OpenAI Responses API 단일 경로 + 3회 재시도만 동작하고, 자체 모델·폴백 디스패처는 미연동이다', '규칙 기반 엔진이 먼저 검사하고 통과 못 하면 OpenAI를 호출한다']" :answer="2" explanation="설계는 8B→4B→3B→규칙엔진→OpenAI의 5단 폴백이지만, 현재 코드는 OpenAI Responses 단일 경로 + 3회 재시도뿐이다. 5단 중 5번(OpenAI)만 살아 있고 1~4는 운영안 문서에만 존재한다. CorrectionAiClient는 폴백이 들어갈 진입점으로 설계되어 있다." />
-
-<QuizBox question="5단 폴백에서 '어느 단계로 떨어지든 동일한 JSON 스키마를 통과해야 저장한다'는 원칙이 주는 이점은?" :choices="['상위 저장·표시 코드가 어느 모델이 답했는지 몰라도 되게 해 결합도를 낮춘다', 'OpenAI 호출 비용을 줄여준다', '자체 모델의 VRAM 사용량을 낮춘다', '사용자 인증을 생략할 수 있게 한다']" :answer="0" explanation="폴백이 출력 모양(5필드 JSON)을 바꾸지 않으므로, correction_request 저장·result_json 직렬화·프론트 표시 코드는 어느 단계가 응답했는지 알 필요가 없다. 모델 교체가 상위 계층에 새지 않게 하는 계약이다." />
+<QuizBox question="사용자가 Claude를 명시 선택한 경우로 맞는 것은?" :choices="['항상 자체 모델부터 다시 시작한다', 'Claude부터 시도하고 실패하면 OpenAI로 내려간다', '선택과 관계없이 Mock을 반환한다', '모델 선택은 프런트에만 있고 서버가 무시한다']" :answer="1" explanation="AiProviderChain.startingFrom이 명시 선택 tier부터 하위 tier를 순회한다." />

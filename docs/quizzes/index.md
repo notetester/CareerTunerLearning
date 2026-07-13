@@ -61,7 +61,7 @@ CareerTuner Learning의 모든 학습 페이지는 끝에 `QuizBox` 퀴즈가 2~
 | 본인 담당 영역을 한 줄로 못 말한다 | [영역별 역할 분담](/project/my-role) · [CareerTuner 한눈에](/project/overview) |
 
 :::warning 자기 영역은 정직하게
-영역 C 안에서도 **구현된 것**(적합도 분석 `FitAnalysisAiService`·`fit_analysis`, 장기 취업경향 `CareerAnalysisRunService`·`career_analysis_run`, 대시보드 `DashboardInsightPromptCatalog`)과 **설계 단계**(자체 LLM 커리어전략 모델 `careertuner-c-career-strategy`)를 섞어 말하지 말자. 퀴즈 해설도 이 구분을 따른다. 면접에서 계획을 구현처럼 말하면 꼬리질문에서 무너진다.
+영역 C의 적합도·장기 경향·대시보드 분석과 Qwen2.5-3B LoRA 학습·연결은 구현 근거가 있다. 다만 자체 모델은 설정 활성 경로이고 저장소 기본 provider는 OpenAI다. 구현 여부와 운영 기본값을 섞어 말하지 말자.
 :::
 
 ## 5. 면접 셀프체크 — 점수 말고 이 기준으로

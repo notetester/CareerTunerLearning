@@ -30,11 +30,11 @@
 | --- | --- |
 | 한 줄 정의 | 채용공고에 맞춰 스펙·면접 답변을 조정하는 AI 취업 전략 플랫폼 |
 | 핵심 단위 | **지원 건(Application Case)** — 공고 아님. 모든 데이터가 케이스에 연결 |
-| 스택(백) | Spring Boot 4.0.6 · Java 21 · MyBatis(JPA 금지) · MySQL 8 · REST `/api/**` |
-| 스택(프) | React 18 · Vite 6 · TS · Tailwind v4 SPA · `/api/*` Vite 프록시 → 8080 |
+| 스택(백) | Spring Boot 4.1.0 · Java 21 · MyBatis(JPA 금지) · MySQL 8 · REST `/api/**` |
+| 스택(프) | React 19 · Vite 8 · TS · Tailwind v4 SPA · `/api/*` Vite 프록시 → 8080 |
 | 응답 규약 | 항상 `ApiResponse<T>` 엔벨로프(`common/web/ApiResponse`) |
 | 인증 | STATELESS + JWT(Access 30분 / Refresh 14일) |
-| 데이터 | 약 68개 테이블, 허브 = `users`(A) · `application_case`(B) |
+| 데이터 | 기준 SHA의 정본 DDL 168개 테이블, 허브 = `users`(A) · `application_case`(B) |
 | 팀 | 6인 수직 분담 A~F + AI 기능 #1~34, 각자 사용자화면+API+관리자+AI+DB 소유 |
 | AI 통합 | `ai/autoprep` 오케스트레이터가 6영역 도메인 서비스를 의존 그래프로 병렬 실행 |
 | 본인 기여 | 면접에서 "내가 맡은 영역"을 한 줄로 — A~F 중 본인 담당을 [영역별 심화](/areas/)에서 골라 넣는다 |
@@ -157,14 +157,14 @@ AI 호출 비용은 `ai_usage_log`에 기록하되 **차감은 status가 SUCCESS
 | 케이스 단위 도메인 | A~F 도메인 서비스, 4계층, `ApiResponse` | — |
 | 인증 | STATELESS JWT, Refresh 원장 폐기 | — |
 | 오케스트레이터 | 의존 그래프 병렬, SSE(`plan`→`part`→`done`), 동기/스트림 | 프런트 인테이크 챗봇 완전 연결 |
-| 인테이크 챗봇(F) | `IntakeChatAgent`(LangChain4j), `@Tool` 3종, 슬롯 수집 계약 | 슬롯 영속화(현재 JVM 인메모리), 프런트 연결 |
+| 인테이크 챗봇(F) | `IntakeChatAgent`, `@Tool` 3종, 프런트 handoff, `chatbot_intake_slot` | 자동 TTL 정책 |
 | 뉴로-심볼릭(C) | 결정적 신뢰도·점수·severity, fingerprint 캐시 | — |
 | 폴백 | D·두뇌 OSS→Haiku→OpenAI, C OSS→OpenAI→Mock | 전 영역 Haiku 적용, 자체모델 생성(화이트리스트 빈 집합) |
 | 크레딧 | 성공 기준·멱등 차감, 사용권/크레딧 우선순위 | — |
 | 자체 LLM | 면접 파인튜닝 트랙 진행, 임베딩(bge-m3)·검열(gemma) | 담당별 3B/8B 자체모델 생성 라이브 투입 |
 
 ::: warning 수치 표기 주의
-테이블 수는 문서마다 `ai_usage_log`/`file_asset` 포함 여부가 달라 **"약 68개, A 8~9개·D 7~8개"**로 경계 주석을 단다. A의 AI 5기능은 **3개 엔드포인트**(`/profile/ai/{summary,skills,completeness}`)로 통합 노출되므로 "5엔드포인트"로 말하지 않는다.
+테이블 수는 기준 커밋의 canonical `schema.sql`에서 서로 다른 선언 **168개**로 계수했다. A의 AI 5개 기획 기능은 **3개 엔드포인트**(`/profile/ai/{summary,skills,completeness}`)로 통합 노출되므로 "5엔드포인트"로 말하지 않는다.
 :::
 
 ---

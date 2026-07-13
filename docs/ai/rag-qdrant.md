@@ -48,7 +48,7 @@ RAG는 모델 가중치를 건드리지 않고, **답변 직전에 우리 문서
 지식 문서 종류(`kind`)는 `RUBRIC`(채점 기준), `QUESTION_BANK`(질문 은행), `COMPANY`(회사 정보), `GENERAL` 4가지다. 원본 텍스트는 `interview_knowledge` 테이블(MySQL)에, 그 임베딩 벡터는 Qdrant `interview_knowledge` 컬렉션에 들어간다.
 
 :::warning 구현 상태 — 정직하게
-RAG 코드는 **구현되어 있지만 기본 비활성(`enabled=false`)**이다. Qdrant를 띄우고 `careertuner.interview.rag.enabled=true`로 켜야 근거가 주입된다. 영역 C의 적합도/경향 분석(`FitAnalysisAiService` 등)은 아직 RAG를 쓰지 않고 OpenAI 직접 호출이며, 자체 LLM 커리어 전략 모델은 **설계 단계**다.
+면접 RAG 코드는 **구현되어 있지만 기본 비활성(`enabled=false`)**이다. Qdrant와 토글을 함께 켜야 근거가 주입된다. C는 별도의 RAG hard-case 실험 후 단순 주입의 이득이 충분하지 않다는 `KEEP_RAG_DISABLED` 결론을 유지한다. C 자체 모델은 학습·서비스 연결이 검증됐지만 기본 provider는 OpenAI다.
 :::
 
 ## 5. 핵심 동작 원리 (색인 / 검색 2단계)

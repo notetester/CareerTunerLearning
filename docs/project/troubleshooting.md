@@ -123,7 +123,7 @@ function tryRefresh() {
   - **원장(ledger) 분리** — 잔액을 직접 갱신하지 않고 "변동분 + 변동 후 잔액"을 `credit_transaction`/`benefit_transaction`에 행으로 기록해 모든 차감/충전이 감사 추적 가능.
   - **"결제는 잔액을 만들지 않는다"** — Toss 2단계(ready/confirm)에서 confirm 시 서버가 금액·주문을 재검증하고, 실제 지급은 `billingService`의 공통 메서드가 원장에 기록.
   - **멱등·원자적 차감** — `AiChargeService.charge`/`consumeByFeature`가 조건부 원자 차감 + 멱등키로 중복을 막도록 완성·테스트됨.
-- **정직한 갭**: 차감 엔진은 단위 테스트를 통과하지만 **운영 경로에 아직 미배선**이라, 현재 AI 실행 시 `ai_usage_log`와 결과 행만 쌓이고 실제 잔액 차감은 일어나지 않는다. 면접에서는 "엔진은 완성됐고 연결만 남았다"고 정직하게 말한다.
+- **현재 연결**: 첨삭은 실행 전 preflight 후 유효 결과·사용량 로그·`AiChargeService` 정산을 한 트랜잭션으로 확정한다. 공통 AI 경로도 acknowledgement된 요청의 첫 성공 usage를 정산하는 helper를 사용한다.
 - **배운 점**: 금전은 "마지막에 한 번 빼기"가 아니라 **기록(원장) → 검증(콜백 재검증) → 멱등(중복 방지)**을 처음부터 설계에 넣어야 한다. 더 깊게: [크레딧 시스템](/area-e/credit-system) · [결제 흐름](/area-e/payment-flow).
 
 ### F · AI 오판으로 인한 자동 처분과 라우팅 비용
@@ -208,6 +208,6 @@ function tryRefresh() {
 
 <QuizBox question="영역 D에서 자체 생성 모델 화이트리스트(OSS_GENERATION_TASKS)가 빈 집합인 상태가 의미하는 것은?" :choices="['자체 모델이 모든 생성을 담당한다', '질문·리포트 생성이 현재 Claude→OpenAI 폴백으로 동작하며, 학습이 충분한 task부터 점진 교체한다', '폴백 체인이 꺼졌다', '채점이 비활성화됐다']" :answer="1" explanation="생성 task 화이트리스트가 비어 있어 자체 모델로 가지 않고 Claude→OpenAI 폴백으로 동작한다. QGEN 학습 데이터 부족이 명시된 이유이며, Claude는 자체모델로 가는 디딤돌로 점진 교체한다." />
 
-<QuizBox question="영역 E에서 'AI를 실행하면 크레딧이 실제로 차감되나?'에 대한 현재 코드 기준 정직한 답은?" :choices="['실행 즉시 잔액이 차감된다', '차감 엔진 자체가 없다', '차감 엔진은 원자적·멱등하게 완성·테스트됐으나 운영 경로에 미배선이라 실제 차감은 일어나지 않는다', '결제 도메인이 직접 잔액을 깎는다']" :answer="2" explanation="AiChargeService/consumeByFeature는 완성·테스트를 통과하지만 호출처가 test에만 있어 운영 경로와 배선되지 않았다. 실행 시 ai_usage_log와 결과 행만 쌓이고 실제 잔액은 깎이지 않는다." />
+<QuizBox question="영역 E에서 첨삭이 성공하면 과금은 어떻게 확정되는가?" :choices="['프런트가 잔액을 직접 줄인다', 'preflight 뒤 결과·SUCCESS 로그·AiChargeService 정산을 멱등 트랜잭션으로 확정한다', '실패도 같은 비용을 차감한다', '결제 도메인이 모델을 직접 호출한다']" :answer="1" explanation="CorrectionService의 chargeRequired 경로가 요청 키 replay와 payload 검증 후 결과 저장과 실제 정산을 묶는다." />
 
 <QuizBox question="영역 F의 통합 챗봇이 '경계구역에서만 LLM(화행분류)'을 호출하는 이유로 가장 적절한 것은?" :choices="['명확구역은 임베딩 argmax로 결정적으로 가를 수 있어 LLM의 비용·비결정성을 줄이려고', '경계구역은 항상 FALLBACK으로 끊어야 해서', '명확구역에서는 LLM이 동작하지 않아서', '모든 질문에 LLM을 두 번 호출하려고']" :answer="0" explanation="명확구역은 두 임베딩 점수 차가 충분히 커서 argmax만으로 결정적 라우팅이 가능하다. 애매한 경계구역(실측 약 42% 표본)만 화행분류 LLM을 1회 태워 비용과 비결정성을 최소화한다." />

@@ -1,6 +1,6 @@
 # 프론트엔드 퀴즈
 
-> CareerTuner 프론트엔드(React 18 + Vite 6 + TS + Tailwind v4)의 실제 구현 패턴을 면접에서 자기 입으로 설명할 수 있는지 점검하는 10문항 이상의 자가진단 퀴즈.
+> CareerTuner 프론트엔드(React 19 + Vite 8 + TS + Tailwind v4)의 실제 구현 패턴을 면접에서 자기 입으로 설명할 수 있는지 점검하는 10문항 이상의 자가진단 퀴즈.
 
 ## 1. 이 퀴즈의 목적
 
@@ -52,7 +52,7 @@
 
 프론트 구조를 한 문장으로 묻는 꼬리질문에 대비한 30초 답변.
 
-> "React 18 + Vite + TypeScript SPA고, API는 `app/lib/api.ts`의 제네릭 `api<T>()` 하나로 통일했습니다. 백엔드 `ApiResponse` 엔벨로프를 풀어 `data`만 반환하고, 401이면 단일 플라이트로 토큰을 자동 리프레시합니다. 전역 인증만 Context, 나머지 화면 상태는 Zustand·커스텀 훅으로 나눴습니다."
+> "React 19 + Vite 8 + TypeScript SPA고, API는 `app/lib/api.ts`의 제네릭 `api<T>()` 하나로 통일했습니다. 백엔드 `ApiResponse` 엔벨로프를 풀어 `data`만 반환하고, 401이면 단일 플라이트로 토큰을 자동 리프레시합니다. 전역 인증만 Context, 나머지 화면 상태는 Zustand·커스텀 훅으로 나눴습니다."
 
 ## 6. 직접 말해보기
 
@@ -79,7 +79,7 @@
 
 <QuizBox question="전역 인증 상태(현재 로그인 사용자, isAuthenticated)는 무엇으로 관리하나?" :choices="['Zustand 스토어', 'React Context(AuthContext/AuthProvider)', 'Redux Toolkit', 'localStorage만으로']" :answer="1" explanation="전역 인증은 AuthContext.tsx의 Context + AuthProvider로 관리하고, 그 외 화면 단위 상태는 Zustand와 커스텀 훅으로 나눈다. 인증처럼 앱 전역에서 자주 읽는 값에 Context가 적합하다." />
 
-<QuizBox question="capacitor.config.ts에서 androidScheme를 http로, cleartext를 true로 둔 목적은?" :choices="['앱 크기를 줄이려고', '평문 http 백엔드를 앱에서 same-scheme로 호출하고 cleartext 트래픽을 허용하려고', 'iOS 빌드 호환용', '딥링크를 켜려고']" :answer="1" explanation="androidScheme=http면 앱 origin도 http가 되어 외부 http API와 스킴이 같아지고, cleartext=true면 AndroidManifest의 usesCleartextTraffic이 켜져 평문 http 백엔드 호출이 허용된다." />
+<QuizBox question="현재 Capacitor release 네트워크 정책으로 옳은 것은?" :choices="['외부 HTTP server.url을 항상 허용한다', 'HTTPS origin·평문 차단·mixed content 차단을 강제하고 로컬 HTTP는 debug 사설 host opt-in으로만 허용한다', '네트워크 정책을 WebView 기본값에만 맡긴다', 'release에서도 원격 디버깅을 켠다']" :answer="1" explanation="release 설정·main manifest·network security config가 HTTPS-only를 강제한다. 로컬 HTTP live reload는 debug mode와 사설 host, 명시적 opt-in을 모두 만족해야 하며 release sync에는 들어갈 수 없다." />
 
 <QuizBox question="useApplicationFitAnalysis 훅이 useEffect 안에서 ignore 플래그(let ignore = false; cleanup에서 ignore = true)를 쓰는 이유는?" :choices="['렌더 최적화', '언마운트/의존성 변경 후 도착한 비동기 응답이 상태를 덮어쓰지 않게 하려고', '에러 로깅용', 'StrictMode를 끄려고']" :answer="1" explanation="비동기 fetch가 끝나기 전 컴포넌트가 사라지거나 applicationCaseId가 바뀌면 cleanup에서 ignore=true가 되어, 늦게 도착한 setState를 무시한다. 경쟁 조건(race condition)과 unmount 경고를 막는 표준 패턴이다." />
 

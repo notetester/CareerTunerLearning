@@ -43,7 +43,7 @@
 
 | 레이어 | 기술 | C에서의 역할·근거 클래스 |
 | --- | --- | --- |
-| 백엔드 | Spring Boot 4.0.6 + Java 21 | 4계층 `controller→service→mapper→domain` |
+| 백엔드 | Spring Boot 4.1.0 + Java 21 | 4계층 `controller→service→mapper→domain` |
 | 영속성 | MyBatis + MySQL 8 | `FitAnalysisMapper` + `resources/mapper/**/*.xml` |
 | AI 디스패치 | Strategy + Fallback 패턴 | `FallbackFitAnalysisAiService`(`@Primary`) |
 | 규칙엔진 | 순수 Java(외부 호출 0) | `MockFitAnalysisAiService.score()` |
@@ -51,7 +51,7 @@
 | 외부 LLM | OpenAI Responses API(json_schema strict) | `OpenAiFitAnalysisAiService`, `CareerAnalysisOpenAiClient`(`java.net.http`) |
 | 캐시 | SHA-256 input fingerprint | `CareerAnalysisRunService.fingerprint()` |
 | 실시간 | SSE(SseEmitter 5분) | `AutoPrepOrchestrator.runStream()` |
-| 프론트 | React 18 + Vite 6 + TS + Tailwind v4 | `useApplicationFitAnalysis`, Recharts |
+| 프론트 | React 19 + Vite 8 + TS + Tailwind v4 | `useApplicationFitAnalysis`, Recharts |
 
 핵심 메서드 4개만 기억하면 C의 절반을 설명할 수 있다: `MockFitAnalysisAiService.score()`(점수), `applyDecision()`(판단), `FitAnalysisConfidence.evaluate()`(신뢰도), `CareerAnalysisRunService.fingerprint()`(캐시 키).
 

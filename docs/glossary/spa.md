@@ -6,7 +6,7 @@
 
 SPA는 **단일 HTML 문서 하나를 로드한 뒤, 페이지를 새로 받지 않고 클라이언트(브라우저)에서 화면을 바꿔 그리는** 웹 애플리케이션 구조입니다. 화면 전환은 클라이언트 라우터가, 데이터는 API 호출이 담당합니다.
 
-CareerTuner 프론트엔드가 정확히 이 구조입니다. React 18 + Vite 6 + React Router 7로 만든 단일 페이지 앱이, 별도의 Spring Boot REST 백엔드와 `/api/**`로만 통신합니다.
+CareerTuner 프론트엔드가 정확히 이 구조입니다. React 19.2.7 + Vite 8.1.4 + React Router 8.2.0으로 만든 단일 페이지 앱이, 별도의 Spring Boot REST 백엔드와 `/api/**`로만 통신합니다.
 
 ## 2. 단어 뜻 (약자/어원 풀이)
 

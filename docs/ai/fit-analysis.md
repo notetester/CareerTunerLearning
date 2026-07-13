@@ -92,8 +92,8 @@ if (fitScore >= 70 && requiredUnmet == 0) {
 
 `FitAnalysisConfidence`는 AI가 아니라 입력 상태로 계산합니다. 100점에서 공고 역량 없음(-40), 프로필 기술 없음(-35) 등을 감점하고, 점수 구간으로 `HIGH/MEDIUM/LOW` 레벨을 파생합니다. "점수는 높지만 입력이 부실하면 신뢰도는 낮다"를 표현하기 위함입니다.
 
-:::warning 자체 LLM은 설계 단계
-`FitAnalysisPromptCatalog`에 `FIT_EXPLAIN_SYSTEM_PROMPT`(자체 파인튜닝 모델 `C_FIT_EXPLAIN`용)가 준비돼 있지만, 학습 데이터(`ml/career-strategy-llm`)와 자체모델 서빙은 **미구현·설계 단계**입니다. 현재 운영 경로는 OpenAI + Mock + 규칙엔진입니다.
+:::tip 자체 모델 상태
+`ml/career-strategy-llm`에는 Qwen2.5-3B LoRA 학습·평가 자료가 있고, `FallbackFitAnalysisAiService`에서 Ollama 호환 OSS provider까지 연결됩니다. 다만 저장소 기본값은 `provider=openai`입니다. 어느 provider를 선택해도 점수·지원 판단은 서버 규칙엔진이 소유합니다.
 :::
 
 ## 6. 면접 답변 3단계
@@ -135,4 +135,4 @@ A(프로필)와 B(공고 분석) 담당입니다. C는 `findGenerationSource`로
 
 <QuizBox question="LLM이 APPLY로 응답했을 때 guardApplyDecision이 COMPLEMENT로 강등하는 조건은?" :choices="['점수가 90점을 넘을 때', '필수 미충족이 없을 때', '점수 70점 미만이거나 필수 미충족이 1개 이상일 때', '항상 강등한다']" :answer="2" explanation="APPLY는 fitScore 70점 이상이고 필수 조건 UNMET이 0개일 때만 유지됩니다. 그 외에는 COMPLEMENT(보완 후 지원)로 강등하고 자동 보정 사유를 덧붙입니다." />
 
-<QuizBox question="자체 파인튜닝 모델 C_FIT_EXPLAIN의 현재 구현 상태를 정직하게 설명해 보세요." explanation="프롬프트 카탈로그에 FIT_EXPLAIN_SYSTEM_PROMPT가 준비돼 있고 train/serve 정합을 위한 입력 빌더도 설계돼 있지만, 학습 데이터(ml/career-strategy-llm)와 자체모델 서빙은 미구현 설계 단계입니다. 현재 실제 운영 경로는 폴백 체인의 OpenAI structured output과 Mock이며, 점수·신뢰도·지원 판단 확정은 서버 규칙엔진이 담당합니다." />
+<QuizBox question="자체 파인튜닝 모델 C_FIT_EXPLAIN의 현재 구현 상태를 정직하게 설명해 보세요." explanation="Qwen2.5-3B LoRA 학습·평가, Ollama 호환 서빙, Spring OSS provider 연결 근거가 있습니다. 설정으로 활성화할 수 있지만 저장소 기본 provider는 OpenAI이며, 점수·신뢰도·지원 판단은 provider와 무관하게 서버 규칙엔진이 확정합니다." />

@@ -9,8 +9,8 @@ export default defineConfig({
   lastUpdated: true,
   cleanUrls: true,
 
-  // 84개 페이지를 에이전트가 생성하므로 일부 상호 링크가 비어 있을 수 있다. 빌드 실패 대신 경고만.
-  ignoreDeadLinks: true,
+  // 공개 학습 문서는 깨진 내부 링크를 배포하지 않는다. VitePress 기본 strict 검증을 명시한다.
+  ignoreDeadLinks: false,
 
   head: [
     ['meta', { name: 'theme-color', content: '#5e6ad2' }],
@@ -155,6 +155,8 @@ export default defineConfig({
             { text: 'API 문서화 (Swagger)', link: '/backend/openapi-swagger' },
             { text: '설정 관리', link: '/backend/configuration-properties' },
             { text: '로깅', link: '/backend/logging' },
+            { text: '관리자 인증·세부 권한', link: '/backend/admin-auth-permissions' },
+            { text: 'DB 패치 생명주기', link: '/backend/db-patch-lifecycle' },
           ],
         },
       ],
@@ -178,6 +180,7 @@ export default defineConfig({
             { text: '데이터 시각화 (Recharts)', link: '/frontend/recharts' },
             { text: 'PWA와 서비스워커', link: '/frontend/pwa' },
             { text: '모바일 앱 (Capacitor)', link: '/frontend/capacitor-mobile' },
+            { text: '데스크톱 앱 (Qt/QML)', link: '/frontend/desktop-qt' },
           ],
         },
       ],
@@ -220,6 +223,7 @@ export default defineConfig({
             { text: '공고 추출 (B)', link: '/ai/job-posting-extraction' },
             { text: '가상 면접 (D)', link: '/ai/interview-ai' },
             { text: 'AI 사용량·크레딧 (E)', link: '/ai/ai-usage-credit' },
+            { text: '모델 근거 매트릭스', link: '/ai/model-evidence-matrix' },
           ],
         },
       ],
@@ -256,6 +260,7 @@ export default defineConfig({
             { text: '사용자 end-to-end 여정', link: '/flow/user-journey' },
             { text: '지원 건 중심 흐름', link: '/flow/application-case' },
             { text: '데이터 소유권 경계 맵', link: '/flow/data-ownership' },
+            { text: '데이터 생명주기', link: '/flow/data-lifecycle' },
           ],
         },
         {
@@ -355,6 +360,8 @@ export default defineConfig({
             { text: '점수 산출 규칙엔진', link: '/area-c/score-engine' },
             { text: '부족역량·학습·자격증', link: '/area-c/gap-and-learning' },
             { text: '지원 전략', link: '/area-c/application-strategy' },
+            { text: '자격증 근거 검증', link: '/area-c/certificate-evidence' },
+            { text: '커리어 로드맵·플래너', link: '/area-c/career-roadmap-planner' },
           ],
         },
         {
@@ -414,6 +421,7 @@ export default defineConfig({
             { text: '음성·영상 미디어', link: '/area-d/media-handling' },
             { text: 'SSE 실시간 진행', link: '/area-d/sse-streaming' },
             { text: '오케스트레이터 INTERVIEW', link: '/area-d/orchestrator-interview' },
+            { text: '3플랫폼 면접 연결', link: '/area-d/cross-platform-interview' },
           ],
         },
         {
@@ -458,6 +466,7 @@ export default defineConfig({
           text: 'UI · 종합',
           items: [
             { text: '프론트엔드 UI/UX', link: '/area-e/frontend-ui' },
+            { text: '결제·크레딧 관리자', link: '/area-e/admin' },
             { text: '면접 플레이북', link: '/area-e/interview-playbook' },
           ],
         },
@@ -513,6 +522,7 @@ export default defineConfig({
             { text: 'Git 협업 전략', link: '/infra/git-workflow' },
             { text: '환경변수와 시크릿', link: '/infra/env-and-secrets' },
             { text: '테스트 전략', link: '/infra/testing' },
+            { text: '시연·릴리스 준비도', link: '/infra/release-readiness' },
           ],
         },
       ],
@@ -527,6 +537,7 @@ export default defineConfig({
             { text: '자동 스토리보드 파이프라인', link: '/project/storyboard-pipeline' },
             { text: '어려웠던 문제와 해결', link: '/project/troubleshooting' },
             { text: '프로젝트 면접 스토리', link: '/project/interview-story' },
+            { text: '문서 기준선·사실 확인', link: '/project/source-baseline' },
           ],
         },
       ],

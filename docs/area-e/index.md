@@ -1,164 +1,120 @@
-# 영역 E 개요 — 첨삭·결제·크레딧 (AI #24-28)
+# 영역 E — 첨삭·결제·크레딧
 
-> 상단 네비게이션: [전체 흐름](/flow/) · [AI #1-34 전체 맵](/flow/ai-function-map) · 인접 영역 [영역 D 개요](/area-d/) · [영역 F 개요](/area-f/)
+> 영역 E는 네 종류의 문서 첨삭과 전 영역이 공유하는 결제·사용권·크레딧 정책을 연결한다. 최신 기준에서는 첨삭 프런트, 자체→Claude→OpenAI provider 체인, 성공 결과 실차감, 요금제 추천까지 모두 운영 코드에 연결돼 있다.
 
-CareerTuner는 6명이 한 **지원 건(Application Case)** 을 함께 채우는 수직 분담 구조다. 영역 A~F가 각각 자기 결과를 소유하고, 다른 영역의 원본은 읽기 전용으로 참조한다. 이 페이지는 그 6개 영역 중 **E — 첨삭·결제·크레딧** 을 한눈에 정리한다.
+## 기능 범위
 
----
+| 번호 | 기능 | 식별자 | 현재 상태 |
+| --- | --- | --- | --- |
+| 24 | 면접 답변 첨삭 | `CORRECTION_INTERVIEW_ANSWER` | 구현 |
+| 25 | 자기소개서 첨삭 | `CORRECTION_SELF_INTRO` | 구현 |
+| 26 | 이력서 개선 | `CORRECTION_RESUME` | 구현 |
+| 27 | 포트폴리오 설명 첨삭 | `CORRECTION_PORTFOLIO` | 구현 |
+| 28 | 사용량 기반 요금제 추천 | `USAGE_PLAN_RECOMMENDATION` | 결정론 API·UI 구현 |
 
-## 1. 영역 E가 책임지는 것
+## 핵심 설계
 
-영역 E는 성격이 다른 두 축을 한 영역에 묶는다.
+### 첨삭 4종은 한 도메인
 
-- **축 1 — 첨삭(콘텐츠 개선):** 사용자가 이미 쓴 글(면접 답변·자기소개서·이력서·포트폴리오 설명)을 *실제 지원에 맞게 다듬는* AI 기능이다. 4종을 하나의 `correction` 도메인 + 하나의 AI 클라이언트로 처리하고 `correctionType`(SELF_INTRO / INTERVIEW_ANSWER / RESUME / PORTFOLIO)으로만 분기한다.
-- **축 2 — 과금 인프라(공통 토대):** 결제(PG 콜백 검증)·크레딧 원장·구독/사용권 게이팅·전사 사용량 집계. 이 축은 A~F 모든 영역의 AI 호출이 기대는 공통 엔진이라, 특정 한 영역의 기능이 아니라 **프로젝트 전체의 과금 기반**이다.
-
-이 영역의 설계 정체성은 두 문장으로 압축된다.
-
-| 축 | 한 문장 정체성 | 의미 |
-| --- | --- | --- |
-| 첨삭 | **"원문을 날조하지 않는다"** | 없는 성과·수치·경력을 지어내지 않고, 원본을 덮어쓰지 않으며, 근거 부족한 강화는 제안으로만 돌린다 |
-| 과금 | **"잔액을 직접 만지지 않고 원장으로 기록한다"** | 결제·차감을 행(ledger)으로 append 해 모든 변동이 감사 가능하다 |
-
-:::tip 이 페이지가 답하는 면접 질문
-"영역 E가 정확히 뭘 하나요?" / "첨삭 4종을 왜 한 도메인으로 묶었나요?" / "결제·크레딧·사용권은 어떻게 분리돼 있나요?" / "AI를 쓰면 크레딧이 실제로 깎이나요?"
-이 개요만 막힘없이 말할 수 있으면, 세부 페이지는 디테일을 채우는 역할이다.
-:::
-
----
-
-## 2. 6개 영역 속 영역 E의 위치
-
-CareerTuner의 34개 AI 기능은 6영역에 수직 분담되어 있다. 한 줄씩 보면 다음과 같고, 이 페이지의 주제는 **굵게** 표시한 E다.
-
-| 영역 | 담당 범위 | AI 번호 | 대표 산출물 | 개요 |
-| --- | --- | --- | --- | --- |
-| A | 회원·프로필·인증 | #1~5 | 프로필 요약·기술 추출·완성도 | [영역 A](/area-a/) |
-| B | 지원 건·공고·기업 분석 | #6~11 | 공고 구조화·필수/우대·면접 포인트 | [영역 B](/area-b/) |
-| C | 적합도·전략·대시보드 | #12~18 | 점수+근거+다음 행동 | [영역 C](/area-c/) |
-| D | 가상 면접·리포트 | #19~23 | 예상 질문·답변 평가·리포트 | [영역 D](/area-d/) |
-| **E** | **첨삭·결제·크레딧** | **#24~28** | **원문 비수정 개선안·요금 추천** | **(이 페이지)** |
-| F | 커뮤니티·고객센터·챗봇 | #29~34 | 후기 요약·실제 질문·문의 초안 | [영역 F](/area-f/) |
-
-### 데이터는 어디서 와서 어디로 가나
-
-영역 E는 두 축 모두에서 다른 영역과 맞닿지만, **남의 원본은 읽기 전용으로만 참조**하고 직접 소유권을 판단하지 않는다.
+네 기능은 원문·지원 건 맥락·질문을 받아 개선문과 구조화 피드백을 만드는 계약이 같다. 그래서 별도 테이블과 모델 네 벌을 만들지 않고 `correctionType`으로 분기한다.
 
 ```text
-[A 프로필 / 자소서·이력서 원본]  ──읽기 참조──┐
-[D 면접 답변]                    ──읽기 참조──┤
-                                            ▼
-                                    [E 첨삭 #24~27]  ── 새 결과 행 append (원본 비수정)
-                                            │
-[전 영역 AI 호출] ── ai_usage_log(공통) ──▶ [E 과금: 결제·크레딧·사용권·사용량 집계]
-                                            │
-                                    [E #28 요금제 추천] (사용량·잔액·패턴 기반)
+CorrectionController
+  -> CorrectionService
+       -> CorrectionContextService
+       -> CorrectionAiClient
+            -> CareerTuner LoRA
+            -> Claude
+            -> OpenAI
+       -> ai_usage_log
+       -> correction_request
+       -> AiChargeService
 ```
 
-| 맞닿는 영역 | 주고받는 것 | 경계 규칙 |
-| --- | --- | --- |
-| A (프로필/자소서/이력서) | 자소서·이력서 첨삭이 A의 원본을 참조 | 원문을 덮어쓰지 않고, 확정 반영은 사용자 선택으로만 |
-| B (공고/지원 건) | 첨삭에 `applicationCaseId` 연결 가능 | 소유권 판단을 `applicationCaseAccessService.requireOwned`에 위임 |
-| D (면접) | 면접 답변 첨삭(#24)에서 교차 | D는 첨삭 진입 탭만 두고 실행은 E의 첨삭 경로로 위임 |
-| 전 영역 (과금) | 모든 AI 호출이 `ai_usage_log`에 쌓임 | E의 billing은 이 로그를 단일 근거로 삼는 전사 공통 엔진 |
+### 원문을 덮어쓰지 않는다
 
-핵심 한 줄: **첨삭은 다른 영역의 데이터를 "읽기 참조"만 하고, 과금은 다른 영역의 사용량 위에서 동작하는 공통 인프라다.**
+첨삭 결과는 원문과 별도 행으로 저장한다. 개선문, 변경 이유와 제안을 함께 보여주고 사용자가 선택적으로 반영하도록 한다. 없는 성과·경력·수치를 모델이 보충하지 못하게 하고, 근거가 필요한 강화는 suggestion으로 분리한다.
 
----
+### 성공 결과만 과금한다
 
-## 3. 담당 AI 기능 — #24 ~ #28
+사용자는 실행 전에 예상 정책을 확인한다. 서버는 preflight로 잔여 사용권·크레딧을 검증하고, 유효한 모델 결과가 나온 뒤 결과 저장·사용량 로그·실제 차감을 한 트랜잭션에서 확정한다.
 
-영역 E가 소유한 AI 기능은 5개다. 첨삭 4종(#24~#27)은 별도 모델·별도 흐름이 아니라 **단일 통합 도메인**으로 구현되고, #28만 성격이 다른 추천 기능이다.
+- 실패 호출은 무료다.
+- 같은 `requestKey`는 기존 결과를 replay한다.
+- 사용권을 먼저 쓰고 정책에 따라 크레딧으로 폴백한다.
+- 원자적 조건 UPDATE와 유니크 제약으로 음수·중복을 막는다.
 
-| # | 기능 | featureType | 엔트리 | 한 줄 |
-| --- | --- | --- | --- | --- |
-| 24 | 면접 답변 첨삭 | `CORRECTION_INTERVIEW_ANSWER` | `POST /api/corrections` | 답변 구조·근거·STAR·구체성 개선 |
-| 25 | 자기소개서 첨삭 | `CORRECTION_SELF_INTRO` | `POST /api/corrections` | 문장 흐름·직무 연관성·강점 표현·중복 제거 |
-| 26 | 이력서 표현 개선 | `CORRECTION_RESUME` | `POST /api/corrections` | 성과 중심 문장·역할 명확화·정량 지표 보강 |
-| 27 | 포트폴리오 설명 개선 | `CORRECTION_PORTFOLIO` | `POST /api/corrections` | 문제 해결 과정·기술 선택 이유·결과 표현 개선 |
-| 28 | 사용량 기반 요금제 추천 | `USAGE_PLAN_RECOMMENDATION` | (미구현) | 사용량·잔액·패턴 → 요금제/충전 안내 |
+### 추천은 규칙으로 결정한다
 
-:::warning 구현됨 vs 계획 — 정직하게
-- **#24~#27 백엔드는 실재**한다 — `POST /api/corrections` 생성, `GET /api/corrections` 목록, `GET /api/corrections/{id}` 단건이 동작한다. 다만 프론트 첨삭 화면은 "API 준비 중" 정적 플레이스홀더라 화면에서는 아직 실행되지 않는다.
-- 첨삭의 주력은 자체 LLM(8B급 Qwen3 LoRA)으로 설계됐고 `Qwen3-8B → 4B → Qwen2.5-3B → 규칙엔진 → OpenAI`의 5단 폴백을 계획했으나, **현재 코드는 OpenAI Responses 단일 경로 + 재시도**이며 자체 모델·폴백 디스패처는 진입점만 준비된 상태다.
-- **#28은 정책 데이터만 존재**하고 추천을 산출하는 서비스/컨트롤러가 없다. 추천 재료(이번 달 사용량·플랜·잔여 사용권)는 모두 준비됐지만 묶는 코드가 없는 "설계됨·데이터 준비됨·산출 로직 미구현" 상태다.
-- **과금 차감 엔진(`AiChargeService.charge`/`consumeByFeature`/`deductByAiUsageLog`)은 원자적·멱등하게 완성돼 테스트를 통과**하지만 운영 경로에서 호출되지 않는다. 실행 시 `ai_usage_log`와 결과 행만 쌓이고 실제 잔액은 아직 차감되지 않는다. 면접에서 "크레딧이 깎이나요?"를 물으면 이 갭을 정직하게 말해야 한다.
-:::
+#28은 LLM이 아니다. 월 AI 사용 15회 이상이면 가능한 다음 상위 플랜, 잔액 5 이하이면서 3회 이상 사용했으면 충전 상품, 나머지는 `KEEP`을 추천한다. 추천 API와 Billing 카드가 실제 연결돼 있다.
 
-전체 AI 기능과 영역 간 의존은 [AI #1-34 전체 맵](/flow/ai-function-map)에서, 데이터 소유권 경계는 [데이터 소유권](/flow/data-ownership)에서 다룬다.
+## 사용자 화면
 
----
+`Correction.tsx`는 다음을 제공한다.
 
-## 4. 권장 학습 순서
+- 네 가지 첨삭 탭
+- 지원 건 선택과 면접 답변 source 연결
+- AUTO/CAREERTUNER/CLAUDE/OPENAI 모델 선택
+- 실행 전 비용 고지
+- 결과 카드와 최근 이력
+- 상세 조회와 소프트 삭제
+- 모바일 한 열·데스크톱 본문+aside 배치
 
-세부 페이지는 "원칙 → 첨삭 4종 → 자체 모델 → 데이터 → 과금 → 추천 → 화면" 순으로 묶어 읽으면 자연스럽게 깊어진다.
+`Billing.tsx`는 요금제·추천·사용량·크레딧 상품·결제 이력·환불 요청을 묶는다.
 
-**1단계 — 첨삭의 원칙과 4종**
-1. [첨삭의 원칙 (원문 보존·허위검증)](/area-e/correction-principles) — 4종 단일 도메인 통합, 원문 비파괴, 출력 계약.
-2. [면접 답변 첨삭 #24](/area-e/ai-answer-correction) — D와의 경계, `correctionType` 분기, 입력 설계.
-3. [자기소개서 첨삭 #25](/area-e/ai-coverletter) — 직무 연관성·강점 표현·중복 제거.
-4. [이력서 표현 개선 #26](/area-e/ai-resume-improve) — 성과 중심 문장·정량 지표 보강.
-5. [포트폴리오 설명 개선 #27](/area-e/ai-portfolio) — 문제 해결 과정·기술 선택 이유 표현.
+## 자체 모델
 
-**2단계 — 자체 모델과 데이터 모델**
-6. [자체 LLM 첨삭 모델](/area-e/self-llm-correction) — 8B급 도메인 모델, 5단 폴백 설계 vs 현재 코드.
-7. [첨삭 데이터 모델](/area-e/correction-data-model) — `correction_request`(append-only) ↔ `ai_usage_log` 연결.
+E의 Qwen2.5-3B Correction LoRA는 학습·repair 평가와 `SelfLlmCorrectionProvider` 연결 근거가 있다. AUTO 순서는 CareerTuner → Claude → OpenAI다. 사용자가 특정 모델을 고르면 그 tier부터 시작한다.
 
-**3단계 — 과금 인프라**
-8. [크레딧 시스템 (거래 장부)](/area-e/credit-system) — 원장·조건부 원자적 차감·멱등성.
-9. [결제 흐름 (PG 콜백 검증)](/area-e/payment-flow) — ready/confirm 2단계, 금액 위변조 방지, DEV provider.
-10. [요금제와 기능 게이팅](/area-e/plan-gating) — 사용권 티켓, 정책의 데이터화, 사용권→크레딧 폴백 차감.
+첨삭은 성공처럼 보이는 Mock을 두지 않는다. 전 provider가 실패하면 `AI_UNAVAILABLE`로 끝내고 저장·과금을 하지 않는다.
 
-**4단계 — 추천·가시화·화면**
-11. [요금제 AI 추천 #28](/area-e/ai-plan-recommend) — "데이터는 있으나 산출 로직 없음"의 정직한 설명.
-12. [AI 사용량 대시보드](/area-e/usage-dashboard) — 전사 `ai_usage_log` 월별 집계.
-13. [프론트엔드 UI/UX](/area-e/frontend-ui) — 첨삭 플레이스홀더 vs 결제/크레딧 실연동의 비대칭.
-14. [면접 플레이북](/area-e/interview-playbook) — 1분/3분 압축, 꼬리질문 종합 정리.
+## 데이터
 
-배경 지식이 필요하면 [공통 폴백·공급자](/flow/ai-providers-fallback)와 [공통 크레딧·사용량](/flow/credit-usage)을 함께 본다.
+| 테이블 | 역할 |
+| --- | --- |
+| `correction_request` | 원문·개선문·구조화 결과·source snapshot·모델·상태 |
+| `ai_usage_log` | provider 사용·token·성공/실패·크레딧 사용 |
+| `user_benefit_balance` | 기간별 사용권 잔액 |
+| `benefit_transaction` | 사용권 지급·소비 장부 |
+| `credit_transaction` | 충전·AI 사용·환불·조정 장부 |
+| `payment` | 결제 ready/confirm 상태 |
+| `subscription_plan` | 요금제 마스터 |
+| `ai_feature_benefit_policy` | 기능별 사용권·크레딧 정책 |
 
----
+모든 사용자 삭제는 제품 원칙에 따라 소프트 삭제를 우선하며, 첨삭 삭제도 `DELETE` API가 `deleted_at`을 갱신한다.
 
-## 5. 단골 면접 질문 5개
+## 결제 안전성
 
-:::details Q1. "영역 E는 한마디로 무엇인가요?"
-첨삭(AI 콘텐츠 개선)과 과금 인프라(결제·크레딧·사용권)를 함께 책임지는 영역입니다. 첨삭은 자소서·이력서·면접 답변·포트폴리오 4종을 단일 `correction` 도메인으로 처리하고, 과금은 다른 모든 영역의 AI 기능이 기대는 공통 엔진입니다. 설계 정체성은 "원문을 날조하지 않는 첨삭"과 "잔액을 직접 만지지 않고 원장으로 기록하는 과금"입니다.
-:::
+결제는 ready/confirm 두 단계다.
 
-:::details Q2. "첨삭 4종을 왜 하나의 도메인으로 묶었나요?"
-입력·출력·검증·과금 흐름이 동일하기 때문입니다. 모델·서비스·AI 클라이언트를 1개로 두고 `correctionType`(SELF_INTRO/INTERVIEW_ANSWER/RESUME/PORTFOLIO)으로만 분기합니다. 유지보수가 단순해지고, 출력 형식과 과금 정책(첨삭 4종이 한 혜택 풀을 공유)을 일관되게 가져갈 수 있습니다.
-:::
+1. ready에서 서버가 상품과 금액을 확정하고 주문을 기록한다.
+2. 공급자 결제창을 거친다.
+3. confirm에서 로컬 금액과 공급자 응답 금액을 대조한다.
+4. 조건부 `READY -> PAID` 전환과 결제 키 유니크 제약으로 중복을 막는다.
+5. 구매 시점 정책 snapshot을 남겨 이후 가격 변경이 과거 주문에 소급되지 않게 한다.
 
-:::details Q3. "첨삭이 사용자의 경험을 지어내지 않게 어떻게 막나요?"
-세 겹입니다. (1) 시스템 프롬프트에 "없는 성과·수치·경력을 만들지 말 것" 가드레일을 명시하고, (2) 근거가 부족한 강화 문장은 본문이 아니라 제안(suggestions)으로만 돌리며, (3) 변경 이유(changeReasons)를 노출해 사용자가 검증 후 선택 반영하게 합니다. 원본은 절대 덮어쓰지 않고 새 행으로 append-only 저장합니다.
-:::
+## 문서 지도
 
-:::details Q4. "결제와 크레딧 지급의 책임은 어떻게 나뉘나요?"
-"결제 도메인은 잔액을 직접 만들지 않는다"가 원칙입니다. Toss confirm(2단계 핸드셰이크)이나 DEV 즉시결제는 결제 상태만 PAID로 확정하고, 실제 크레딧·사용권 지급은 `billingService`의 공통 메서드(`grantCreditsAfterPayment`/`activateSubscriptionAfterPayment`)에 위임합니다. 그 메서드가 `credit_transaction`/`benefit_transaction` 원장에 기록하면서 잔액을 변동시킵니다.
-:::
+- [면접 답변 첨삭](/area-e/ai-answer-correction)
+- [자기소개서 첨삭](/area-e/ai-coverletter)
+- [이력서 개선](/area-e/ai-resume-improve)
+- [포트폴리오 첨삭](/area-e/ai-portfolio)
+- [자체 첨삭 모델](/area-e/self-llm-correction)
+- [첨삭 원칙](/area-e/correction-principles)
+- [첨삭 데이터 모델](/area-e/correction-data-model)
+- [크레딧 시스템](/area-e/credit-system)
+- [플랜 게이팅](/area-e/plan-gating)
+- [요금제 추천](/area-e/ai-plan-recommend)
+- [사용량 대시보드](/area-e/usage-dashboard)
+- [결제 흐름](/area-e/payment-flow)
+- [프런트 UI/UX](/area-e/frontend-ui)
+- [관리자 기능](/area-e/admin)
+- [면접 플레이북](/area-e/interview-playbook)
 
-:::details Q5. "AI를 쓰면 크레딧이 실제로 차감되나요?"
-현재는 아닙니다. 차감 엔진(`AiChargeService`/`consumeByFeature`/`deductByAiUsageLog`)은 원자적·멱등하게 완성돼 테스트를 통과하지만, 운영 경로에서 호출되지 않아 AI 실행 경로와 배선되지 않았습니다. 실행 시 `ai_usage_log`와 결과 행만 쌓이고 실제 잔액은 깎이지 않습니다. 엔진은 완성됐고 "연결만 남은" 상태라고 설명하는 게 정확합니다.
-:::
+## 1분 답변
 
----
+> "영역 E는 네 종류 첨삭과 전사 과금 기반을 담당합니다. 첨삭은 단일 correction 도메인으로 통합하고 원문·개선문·변경 이유를 별도 저장해 사실을 보존합니다. AUTO는 자체 LoRA·Claude·OpenAI 순서이고 사용자가 특정 모델을 선택할 수도 있습니다. 실행 전 preflight 후 유효한 결과, 사용량 로그, 실제 사용권·크레딧 차감을 같은 트랜잭션으로 확정하며 요청 키로 재시도를 멱등하게 만듭니다. 사용량 기반 요금제 추천은 결제 강권을 피하려 LLM 대신 설명 가능한 규칙으로 구현해 Billing 카드까지 연결했습니다."
 
-## 6. 직접 말해보기
+<QuizBox question="영역 E 첨삭의 현재 연결 상태로 맞는 것은?" :choices="['백엔드만 있고 화면은 정적이다', '프런트·provider 체인·결과 이력·실차감이 연결돼 있다', 'OpenAI 단일 경로만 있다', '실패해도 Mock 개선문을 저장한다']" :answer="1" explanation="Correction.tsx와 useCorrections가 실제 API를 사용하고 CorrectionService가 provider 결과·사용량 로그·차감을 확정한다." />
 
-아래를 보지 않고 60초 안에 말할 수 있으면 이 개요는 통과다.
-
-1. 영역 E의 두 축과, 각 축의 "한 문장 정체성"(원문 보존 / 원장 기록).
-2. 6개 영역 중 E의 위치 — A·B·D가 입력/원본을 만들고, E는 그 위에서 첨삭·과금을 한다는 흐름.
-3. 첨삭 4종이 왜 한 도메인인지와 분기 키(`correctionType`).
-4. "원문을 날조하지 않는다"가 프롬프트·출력(suggestions/changeReasons)·저장(append-only)으로 어떻게 이어지는지.
-5. 차감 엔진이 완성됐지만 운영 경로에 미배선이라는 갭을, 사실대로.
-
----
-
-## 퀴즈
-
-<QuizBox question="영역 E의 첨삭 4종(#24~#27)은 코드에서 어떻게 구현돼 있나?" :choices="['기능마다 별도 모델·별도 도메인·별도 컨트롤러로 분리', '하나의 correction 도메인 + 하나의 AI 클라이언트에서 correctionType으로만 분기', '면접 답변만 백엔드가 있고 나머지 3종은 프론트 전용', '4종 모두 billing 도메인 안에서 결제와 함께 처리']" :answer="1" explanation="입력·출력·검증·과금 흐름이 동일해서 모델·서비스·AI 클라이언트를 1개로 통합하고 correctionType(SELF_INTRO/INTERVIEW_ANSWER/RESUME/PORTFOLIO)으로만 분기한다." />
-
-<QuizBox question="영역 E가 다른 영역의 데이터를 다루는 방식으로 옳은 것은?" :choices="['A·D의 원본을 직접 수정해 첨삭 결과로 덮어쓴다', 'A·D의 원본은 읽기 참조만 하고 새 결과 행을 append 하며, 과금은 전 영역 공통 ai_usage_log 위에서 동작한다', '모든 영역의 점수를 E가 직접 계산한다', '다른 영역의 지원 건 소유권을 E가 직접 판정한다']" :answer="1" explanation="첨삭은 A의 자소서·이력서, D의 면접 답변을 읽기 참조만 하고 원본을 덮어쓰지 않으며 새 행을 append 한다. 과금은 전 영역 AI 호출이 쌓이는 공통 ai_usage_log를 단일 근거로 삼는 인프라이고, 지원 건 소유권 판단은 공통 서비스에 위임한다." />
-
-<QuizBox question="현재 코드 기준으로, 첨삭을 포함한 AI 기능을 실행하면 크레딧/사용권 차감은 어떻게 되나?" :choices="['실행 즉시 users.credit과 user_benefit_balance가 차감된다', '차감 엔진이 아예 없어서 과금 자체가 불가능하다', '차감 엔진은 완성·테스트 통과 상태지만 운영 경로에 미배선이라 실제 차감은 일어나지 않는다', '결제 도메인이 직접 잔액을 깎아 항상 동기화된다']" :answer="2" explanation="AiChargeService/consumeByFeature/deductByAiUsageLog는 원자적·멱등하게 완성돼 테스트를 통과하지만 호출처가 운영 경로에 배선되지 않았다. 실행 시 ai_usage_log와 결과 행만 쌓인다." />
+<QuizBox question="#28 요금제 추천의 방식은?" :choices="['정책 seed만 있다', 'LLM 단독 판단', '월 사용량·잔액·상품을 이용한 결정론 규칙과 UI 카드', '자동 결제']" :answer="2" explanation="BillingServiceImpl.recommendPlan과 /billing/plan-recommendation, Billing.tsx 추천 카드가 연결돼 있다." />

@@ -26,7 +26,7 @@
 | 검증 | Jakarta Validation, @Valid | [검증](/backend/validation) |
 | 예외 | BusinessException, ErrorCode, @RestControllerAdvice | [예외 처리](/backend/exception-handling) |
 | 트랜잭션 | @Transactional, 롤백 규칙 | [트랜잭션](/glossary/transaction) |
-| 용어 | DTO, REST, ORM 등 | [용어집](/glossary) |
+| 용어 | DTO, REST, ORM 등 | [용어집](/glossary/) |
 
 ## 4. 응답 규약 · 영속성 퀴즈
 
@@ -151,7 +151,7 @@ JWT(jjwt 0.12.6) + Spring Security 조합. `JwtTokenProvider`, `JwtAuthenticatio
 2. "JWT 인증이 SecurityConfig·JwtAuthenticationFilter·JwtTokenProvider·refresh_token 테이블로 어떻게 나뉘어 동작하는지, 토큰이 만료됐을 때까지 포함해 말해 주세요."
 
 :::details 막혔다면 — 복습 순서
-[용어집](/glossary) → [ApiResponse](/glossary/api-response-envelope) → [MyBatis](/backend/mybatis) → [검증](/backend/validation) → [예외 처리](/backend/exception-handling) → [트랜잭션](/glossary/transaction) → [JWT 보안](/backend/jwt-security)
+[용어집](/glossary/) → [ApiResponse](/glossary/api-response-envelope) → [MyBatis](/backend/mybatis) → [검증](/backend/validation) → [예외 처리](/backend/exception-handling) → [트랜잭션](/glossary/transaction) → [JWT 보안](/backend/jwt-security)
 :::
 
 ## 퀴즈

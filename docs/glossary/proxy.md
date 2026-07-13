@@ -81,7 +81,7 @@ config.setAllowCredentials(true);
 source.registerCorsConfiguration("/api/**", config);
 ```
 
-- Capacitor(`frontend/capacitor.config.ts`)는 평문 http 백엔드(Tailscale/LAN)를 부르려고 `androidScheme: 'http'`, `cleartext: true`로 설정돼 있다.
+- Capacitor release는 HTTPS origin과 평문 차단을 강제한다. 로컬 HTTP live reload는 debug mode·사설 host·명시적 opt-in을 모두 만족할 때만 별도 source set에서 허용한다.
 
 :::warning 정리: 개발은 프록시, 배포·모바일은 절대 URL + CORS
 - **dev(웹)**: 상대경로 `/api` → Vite 프록시 → 백엔드. CORS 불필요.
@@ -140,7 +140,7 @@ Spring Boot 백엔드(:8080)
 :::
 
 :::details Q5. 모바일 APK에서 `localhost`로 백엔드를 못 부르는 이유는?
-앱은 자기 자신이 `http(s)://localhost` 출처라서, `/api`를 상대경로로 부르면 PC가 아니라 **폰/에뮬레이터 자기 자신**을 가리킨다(BlueStacks→PC localhost 불가). 그래서 도달 가능한 백엔드(LAN IP·Tailscale 주소)를 `VITE_API_BASE_URL`로 절대 지정해야 하고, 평문 http면 Capacitor의 `androidScheme:'http'`·`cleartext:true`로 허용한다.
+앱의 상대 `/api`는 PC가 아니라 **폰/에뮬레이터 자신의 origin**을 가리킬 수 있다. 실제 연동 build는 도달 가능한 HTTPS backend를 `VITE_API_BASE_URL`로 지정한다. 사설 HTTP 개발 서버는 release가 아니라 명시적 debug profile에서만 사용할 수 있다.
 :::
 
 ## 8. 직접 말해보기

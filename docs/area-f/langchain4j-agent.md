@@ -156,12 +156,12 @@ public interface QuickReplyAgent {
 | 인테이크 에이전트 `@AiService` + 툴 3종 | ✅ 구현됨 | listCases/chooseCase/chooseMode, 전용 메모리 윈도우 40 |
 | 출처 접지(`SearchTrace`/`IntakeSlotTrace`) | ✅ 구현됨 | 툴 반환분만 기록, 링크 화이트리스트 |
 | 대화 메모리 영속(`MyBatisChatMemoryStore`) | ✅ 구현됨 | `chatbot_conversation_memory`에 JSON 직렬화 |
-| 인테이크 **슬롯 세션 DB 영속** | ◐ 부분 | 슬롯은 현재 **JVM 인메모리**(프로세스 수명). DB 영속화는 D·C 합의 후 단계 |
-| 전용/관리자 인테이크 프론트 | ⚠️ 일부 미연결 | 슬롯 수집 백엔드는 동작, 일부 화면 미연결 |
+| 인테이크 슬롯 세션 DB 영속 | ✅ 구현됨 | `chatbot_intake_slot` upsert, PENDING 복원, 대화 삭제 동반 정리 |
+| 사용자 인테이크 프런트 | ✅ 구현됨 | 공통 챗봇 칩·파일 handoff와 AutoPrep run 연결 |
 | 에이전트 LLM 폴백(장애 시 다른 모델) | ⚠️ 없음(예정) | 현재는 Ollama 장애 시 안내 메시지로 graceful degradation |
 
 :::warning 정직 포인트
-"인테이크 슬롯이 DB에 저장되냐"고 물으면 **아니오, 현재는 인메모리**라고 답해야 한다. 메모리 윈도우(대화 메시지)는 DB 영속이지만, 확정 슬롯(caseId·mode)의 세션 영속화는 미구현이다.
+확정 슬롯은 DB에 저장되지만 아무 상태나 복원하지 않는다. 진행 중 `PENDING`만 되살리고 `READY`·`DONE`은 완료/이탈 세션의 stale 부활을 막기 위해 제외한다. 자동 TTL은 별도다.
 :::
 
 ## 6. 면접 답변 3단계
