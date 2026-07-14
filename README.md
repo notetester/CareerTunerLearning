@@ -31,7 +31,7 @@ npm run docs:build    # 정적 사이트 빌드
 npm run docs:preview  # 빌드 결과 미리보기
 ```
 
-Node.js 20 이상 필요.
+Node.js 22 이상 필요. 제품 프런트엔드와 CI의 기준도 Node 22다.
 
 ## 배포 (GitHub Pages)
 
@@ -41,6 +41,16 @@ Node.js 20 이상 필요.
 배포 주소: `https://notetester.github.io/CareerTunerLearning/`
 
 > `docs/.vitepress/config.ts` 의 `base` 값(`/CareerTunerLearning/`)은 저장소 이름과 일치해야 합니다.
+
+## 기준 소스와 공개 포트폴리오
+
+이 학습 자료의 현재 사실 기준은 CareerTuner `dev`의 `23bb4d221a9568db6b46b08af57514a5097ee33a`다. 상세 기준과 사실 채택 순서는 [문서 기준선](docs/project/source-baseline.md)에 기록한다.
+
+- 제품 원본: <https://github.com/notetester/CareerTuner>
+- 공개 포트폴리오: <https://github.com/notetester/CareerTunerPortfolio>
+- 공개 포트폴리오 병행 저장소: <https://github.com/notetester/CareerTunerPortfolios>
+
+공개 포트폴리오는 비밀값·개인정보를 제거한 별도 이력이며, 이 Learning 저장소는 실행 코드 정본이 아니라 설명·면접 학습 자료다.
 
 ## 퀴즈 컴포넌트
 

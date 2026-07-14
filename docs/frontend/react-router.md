@@ -1,6 +1,6 @@
 # React Router
 
-> "SPA에서 페이지 전환을 서버 왕복 없이 클라이언트가 직접 처리하는 라우팅 라이브러리예요. CareerTuner는 React Router 7의 `createBrowserRouter`로 단일 라우트 트리를 만들고, 사용자/관리자 라우트를 파일로 분리해 합쳤습니다."
+> "SPA에서 페이지 전환을 서버 왕복 없이 클라이언트가 직접 처리하는 라우팅 라이브러리예요. CareerTuner는 React Router 8.2.0의 `createBrowserRouter`로 단일 라우트 트리를 만들고, 사용자/관리자 라우트를 파일로 분리해 합쳤습니다."
 
 ## 1. 한 줄 정의
 
@@ -43,10 +43,14 @@ React Router는 이걸 **선언적 라우트 테이블** 하나로 정리한다.
 ```ts
 import { createBrowserRouter } from "react-router";
 import { adminRoutes } from "../admin/routes";
+import { withAuthGate, withConsentGate } from "./auth/ConsentGate";
 
 const basename = import.meta.env.BASE_URL === "/"
   ? "/"
   : import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const AuthenticatedProfileBasicPage = withAuthGate(ProfileBasicPage);
+const ConsentAnalysisHubPage = withConsentGate(AnalysisHubPage, ["AI_DATA"]);
 
 export const router = createBrowserRouter([
   {
@@ -54,7 +58,8 @@ export const router = createBrowserRouter([
     Component: Root,          // 공통 레이아웃(헤더/푸터/하단탭)
     children: [
       { index: true, Component: HomePage },
-      { path: "dashboard", Component: DashboardPage },
+      { path: "analysis", Component: ConsentAnalysisHubPage },
+      { path: "profile/basic", Component: AuthenticatedProfileBasicPage },
       { path: "applications/:id/:section/:mode", Component: ApplicationDetailPage },
       { path: "community/posts/:postId", Component: CommunityPage },
       ...adminRoutes,          // 관리자 라우트를 같은 트리에 합침
@@ -64,10 +69,12 @@ export const router = createBrowserRouter([
 ```
 
 :::tip 관찰 포인트 (면접에서 "근거" 로 쓸 디테일)
-- **`Component:` 프롭 스타일** — React Router 7의 데이터 라우터 문법. `element: <HomePage />` 대신 컴포넌트 자체를 넘긴다.
+- **`Component:` 프롭 스타일** — React Router 8의 데이터 라우터 문법. `element: <HomePage />` 대신 컴포넌트 자체를 넘긴다.
 - **동적 세그먼트 다중** — `applications/:id/:section/:mode` 처럼 콜론 파라미터를 3개까지 쓴다. 같은 `ApplicationDetailPage`가 파라미터 개수만 다른 3개 라우트로 등록돼, URL만으로 "어느 지원 건의 어느 섹션을 보기/편집 모드로" 까지 표현한다.
 - **사용자/관리자 분리** — 관리자 라우트는 별도 파일에서 배열로 export하고 `...adminRoutes`로 합친다. 담당자(영역)별 충돌을 줄이는 구조.
 - **딥링크 라우트** — `community/posts/:postId`는 알림 클릭 시 글 상세로 바로 진입하기 위한 경로(주석에 팀장 승인 기록).
+- **허브와 세부 URL 분리** — 프로필·지원 건·면접·첨삭·분석·플래너·메신저·카탈로그는 허브와 세부 작업을 독립 path로 둬 새로고침·북마크·모바일 딥링크가 같은 화면을 복원한다.
+- **진입 게이트와 서버 권위 분리** — `withAuthGate`·`withConsentGate`는 UX 경계이고 API의 401/403·소유권 검사가 최종 보안 권위다.
 :::
 
 `Root.tsx`가 모든 화면의 공통 골격을 그린다. 핵심은 `<Outlet/>`(자식 라우트가 들어가는 자리)과 `<ScrollRestoration/>`(라우트 이동 시 스크롤 맨 위 복원), 그리고 `useLocation()`으로 현재 경로를 보고 관리자/로그인 화면에서 하단 탭을 숨기는 분기다.
@@ -118,7 +125,7 @@ export function Root() {
 ## 6. 면접 답변 3단계 (초간단 1문장 / 기본 / 꼬리질문 대응)
 
 - **1문장:** "React Router로 URL과 컴포넌트를 매핑해 서버 왕복 없이 화면을 전환하는 SPA 라우팅을 구현했습니다."
-- **기본:** "React Router 7의 `createBrowserRouter`로 단일 라우트 트리를 만들고, 최상위 `Root` 레이아웃 아래 자식 라우트를 중첩했습니다. `<Outlet/>`에 본문이 들어가고 헤더/푸터/하단탭은 공통으로 유지됩니다. 사용자 라우트(`app/routes.ts`)와 관리자 라우트(`admin/routes.ts`)를 파일로 분리해 스프레드로 합쳐, 담당 영역 충돌을 줄였습니다."
+- **기본:** "React Router 8의 `createBrowserRouter`로 단일 라우트 트리를 만들고, 최상위 `Root` 레이아웃 아래 자식 라우트를 중첩했습니다. `<Outlet/>`에 본문이 들어가고 헤더/푸터/하단탭은 공통으로 유지됩니다. 사용자 라우트(`app/routes.ts`)와 관리자 라우트(`admin/routes.ts`)를 파일로 분리해 스프레드로 합쳐, 담당 영역 충돌을 줄였습니다."
 - **꼬리질문 대응:** "동적 세그먼트는 `applications/:id/:section/:mode`처럼 다단계로 써서 URL만으로 지원 건의 섹션·모드까지 표현하고, 컴포넌트에서 `useParams`로 읽습니다. 새로고침 시 404를 막으려면 서버/PWA에 index.html 폴백이 필요한데, PWA에서는 `navigateFallbackDenylist`로 `/api`만 제외해 라우팅과 API 캐시를 분리했습니다."
 
 ## 7. 자주 나오는 꼬리질문 + 모범답안
@@ -150,7 +157,7 @@ export function Root() {
 
 ## 퀴즈
 
-<QuizBox question="CareerTuner의 routes.ts에서 라우트 트리를 만드는 데 쓰는 React Router 7 API는?" :choices="['BrowserRouter 컴포넌트', 'createBrowserRouter', 'useRoutes 훅', 'createHashRouter']" :answer="1" explanation="app/routes.ts는 createBrowserRouter에 라우트 객체 배열을 넘겨 router를 만든다. 깨끗한 경로(History API)를 쓰는 데이터 라우터 방식이다." />
+<QuizBox question="CareerTuner의 routes.ts에서 라우트 트리를 만드는 데 쓰는 React Router 8 API는?" :choices="['BrowserRouter 컴포넌트', 'createBrowserRouter', 'useRoutes 훅', 'createHashRouter']" :answer="1" explanation="app/routes.ts는 createBrowserRouter에 라우트 객체 배열을 넘겨 router를 만든다. 깨끗한 경로(History API)를 쓰는 데이터 라우터 방식이다." />
 
 <QuizBox question="부모 레이아웃(Root)에서 자식 라우트 컴포넌트가 실제로 렌더되는 위치를 지정하는 요소는?" :choices="['<Slot/>', '&lt;Children/>', '&lt;Outlet/>', '&lt;RouterView/>']" :answer="2" explanation="중첩 라우트에서 자식 화면은 부모의 &lt;Outlet/> 자리에 그려진다. Root.tsx는 헤더/푸터 사이의 main 안에 &lt;Outlet/>을 둔다." />
 

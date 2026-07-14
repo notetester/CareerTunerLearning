@@ -150,7 +150,7 @@ LLM 호출이 성공하면 `ai_usage_log`에 `feature_type=INTERVIEW_QUESTION_GE
 
 ## 5. 구현 상태 (됨 vs 계획) — 정직 구분
 
-이 기능은 "다 된 것"처럼 보이지만, **기획서가 약속한 입력 조합**과 **자체 LLM 가동 여부**에서 실제와 차이가 있다. 면접에서 이 갭을 정확히 말하는 게 중요하다.
+이 기능은 A/B/C 정본 입력과 provenance까지 연결됐다. 자체 LLM 생성 task의 활성 여부는 별도 경계다.
 
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
@@ -158,12 +158,13 @@ LLM 호출이 성공하면 `ai_usage_log`에 `feature_type=INTERVIEW_QUESTION_GE
 | 모범답안 백그라운드 생성 + first-writer-wins | 구현됨 | `afterCommit` + 조건부 UPDATE |
 | 모드별 질문 수(압박 3, 기타 6) | 구현됨 | `PRESSURE_QUESTION_COUNT` 등 |
 | `type` 오분류 방어 | 구현됨 | enum 제외 + `normalizeType` |
-| **C 적합도 · A 프로필 입력 조합** | **미연결(부분 구현)** | 프롬프트엔 회사·직무·공고(B)만 주입 |
+| **A 프로필·B 공고/기업·C 적합도 입력 조합** | **구현됨** | `findPreparationContext` + `capturePreparationContext` |
+| 질문 생성 시점 source snapshot | 구현됨 | 세션 `source_snapshot`에 원천 ID·C 핵심 결과 고정 |
 | **자체 LLM(OSS)로 질문 생성** | **미가동(계획)** | `OSS_GENERATION_TASKS = Set.of()` (빈 집합) |
 | 모드 6종 실사용 | 구현됨(6종) | 프런트 `InterviewMode` 6종 |
 
-:::warning 갭 1 — "B+C+A 조합"은 아직 B만 들어간다
-이 페이지의 집중 포인트는 "B 공고 + C 적합도 + A 프로필 조합 → 직무/기술/인성/상황/기업맞춤 질문"이다. **이건 목표 설계(기획·분담 문서)의 그림이다.** 실제 코드(`InterviewOpenAiClient.generateQuestions`)의 userPrompt에는 **회사명·직무명·면접 모드·공고 원문(B)만** 들어간다. 적합도(C)·프로필 스냅샷(A)은 아직 프롬프트에 주입되지 않는다. 면접에서는 "현재는 공고(B) 기반이고, C/A 입력은 데이터 경계는 잡혀 있으나 프롬프트 연결은 다음 단계"라고 말하는 게 정확하다.
+:::tip A/B/C 입력과 스냅샷
+`InterviewMapper.findPreparationContext`가 A 프로필 버전, B 공고·공고분석·기업분석, C 최신 성공 적합도를 한 번에 읽는다. `capturePreparationContext`는 질문 프롬프트용 설명과 `source_snapshot`을 함께 만들고 세션에 저장한다. C 분석이 없어도 A/B 입력으로 질문 생성은 계속되며, 이후 평가·음성 채점·리포트는 질문 생성 시점에 고정한 C 핵심 결과만 재사용한다.
 :::
 
 :::warning 갭 2 — "자체 LLM이 질문을 만든다"는 아직 아니다
@@ -175,13 +176,13 @@ LLM 호출이 성공하면 `ai_usage_log`에 `feature_type=INTERVIEW_QUESTION_GE
 ## 6. 면접 답변 3단계
 
 **1단계 — 무엇 (한 문장).**
-"지원 건의 회사·직무·공고를 LLM에 넣어 면접 모드별 예상 질문 6개 안팎을 만들고, 커밋 직후 백그라운드에서 모범답안까지 묶어 만들어 채점 기준으로 재사용하는 기능입니다."
+"지원 건의 A 프로필·B 공고/기업 분석·C 적합도 근거를 LLM에 넣어 면접 모드별 예상 질문 6개 안팎을 만들고, 커밋 직후 백그라운드에서 모범답안까지 묶어 채점 기준으로 재사용하는 기능입니다."
 
 **2단계 — 어떻게 (구조).**
-"`InterviewController` → `InterviewServiceImpl.generateQuestions` → `InterviewOpenAiClient` → `FallbackInterviewLlmGateway`로 흐릅니다. 소유 검증 후 공고 원문을 읽어 userPrompt를 조립하고, `interview_questions` JSON 스키마로 강제 출력을 받아 기존 질문을 지우고 `interview_question`에 sort_order 0부터 저장합니다. 질문 INSERT 직후 `afterCommit` 콜백에 모범답안 일괄 생성을 등록해서, 사용자는 질문을 즉시 받고 모범답안은 백그라운드로 채워집니다."
+"`InterviewController` → `InterviewServiceImpl.generateQuestions` → `InterviewOpenAiClient` → `FallbackInterviewLlmGateway`로 흐릅니다. 소유 검증 후 A/B/C 정본을 읽어 userPrompt와 세션 snapshot을 만들고, `interview_questions` JSON 스키마 출력을 저장합니다. 질문 INSERT 직후 `afterCommit` 콜백에 모범답안 일괄 생성을 등록해서 사용자는 질문을 즉시 받습니다."
 
 **3단계 — 왜·트레이드오프 (깊이).**
-"세 가지 결정이 핵심입니다. (1) 모범답안을 비동기로 만들어 질문 표시를 막지 않되, `afterCommit`으로 커밋 가시성을 보장하고 first-writer-wins로 '화면=채점=복습' 모범답안을 하나로 고정했습니다. (2) LLM의 type 오분류를 스키마 enum 제외 + `normalizeType` 두 겹으로 막았습니다. (3) 현재는 공고(B) 기반이고, 기획이 약속한 적합도(C)·프로필(A) 조합과 자체 LLM 질문 생성은 데이터 부족 때문에 아직 폴백(Claude/OpenAI)으로 두고 점진 교체를 계획 중입니다."
+"세 가지 결정이 핵심입니다. (1) 모범답안을 비동기로 만들되 `afterCommit`과 first-writer-wins로 '화면=채점=복습' 기준을 하나로 고정했습니다. (2) LLM type 오분류를 스키마 enum과 `normalizeType`으로 막았습니다. (3) A/B/C 입력 ID와 적합도 핵심 결과를 세션 snapshot으로 고정해 후속 평가·리포트가 같은 근거를 재사용합니다. 자체 LLM 질문 생성은 데이터 품질 때문에 아직 Claude/OpenAI 폴백입니다."
 
 ## 7. 꼬리질문 + 모범답안
 
@@ -192,7 +193,7 @@ LLM 호출이 성공하면 `ai_usage_log`에 `feature_type=INTERVIEW_QUESTION_GE
 백그라운드 스레드는 별도 커넥션을 씁니다. 트랜잭션이 아직 커밋되지 않았다면 방금 INSERT한 질문이 그 커넥션에서 안 보입니다. 그러면 모범답안 UPDATE가 대상 질문을 못 찾아 누락됩니다. `TransactionSynchronization.afterCommit`은 커밋 완료 후에 실행을 보장하므로, 백그라운드가 새 질문을 확실히 보게 됩니다.
 
 **Q3. 같은 세션에서 질문을 또 생성하면 어떻게 되나요?**
-`deleteQuestionsBySessionId`로 기존 질문을 먼저 지운 뒤 다시 INSERT합니다. 즉 재생성은 멱등에 가깝게 "교체"로 동작합니다. (이전 답변·꼬리질문이 걸려 있었다면 그 정리 정책은 별도지만, 질문 자체는 새 세트로 갈립니다.)
+답변·원본·분석 결과가 있는 세션은 `hasQuestionRegenerationBlockers`가 409로 막아 기존 기록을 보존하고 새 세션 생성을 안내합니다. 차단 요소가 없는 세션만 기존 질문을 soft delete하고 새 세트로 교체하며, operation key 예약으로 같은 요청 재전송도 중복 생성하지 않습니다.
 
 **Q4. LLM이 본질문을 꼬리질문(FOLLOW_UP)으로 잘못 분류하면요?**
 두 겹으로 막습니다. 본질문 생성용 `questionsSchema()`의 `type` enum에 `FOLLOW_UP`을 넣지 않아 구조화 출력 단계에서 원천 차단하고, 파싱 단계의 `normalizeType`이 모르는 값·`FOLLOW_UP`을 전부 `EXPECTED`로 강등합니다. `FOLLOW_UP`은 꼬리질문 생성 API에서만 코드로 강제 부여합니다.
@@ -200,14 +201,14 @@ LLM 호출이 성공하면 `ai_usage_log`에 `feature_type=INTERVIEW_QUESTION_GE
 **Q5. 클래스 이름이 `InterviewOpenAiClient`인데 OpenAI 전용인가요?**
 아닙니다. 실제 호출은 `InterviewLlmGateway` → `FallbackInterviewLlmGateway`를 거쳐 자체모델 → Claude(Haiku) → OpenAI 순으로 폴백합니다. 질문 생성은 현재 자체모델 화이트리스트가 비어 있어 실질적으로 Claude→OpenAI로 갑니다. 이름은 역사적 잔재이고, 생성 모델은 `InterviewModelProperties.getGeneration()`(`gpt-5.4-mini` 티어)로 분리돼 있습니다.
 
-**Q6. 기획서에는 적합도(C)·프로필(A)도 질문 입력으로 쓴다는데 실제로 들어가나요?**
-현재 프롬프트에는 회사·직무·면접 모드·공고 원문(B)만 들어갑니다. 적합도(C)·프로필(A) 주입은 미연결 상태로, 데이터 경계(읽기 전용 참조)는 정의돼 있으나 프롬프트 연결은 다음 단계입니다. 목표 설계와 현재 구현을 구분해 말하는 게 정확합니다.
+**Q6. 적합도(C)·프로필(A)도 질문 입력으로 실제 들어가나요?**
+들어갑니다. `findPreparationContext`가 A 프로필 버전과 B 공고/기업 분석, C 최신 성공 적합도를 읽고 질문용 context를 만듭니다. 원천 ID와 C 핵심 결과는 세션 snapshot으로 고정합니다. C 분석이 아직 없으면 실패시키지 않고 A/B만으로 생성합니다.
 
 ## 8. 직접 말해보기
 
 다음을 보지 않고 30초 안에 소리 내어 설명해 보자. 막히면 해당 절로 돌아간다.
 
-1. 질문 생성의 입력 4가지를 말하고, 그중 "지금은 빠져 있는" 두 가지(C·A)를 짚어 보라.
+1. 질문 생성의 A/B/C 입력과 C 분석이 없을 때의 폴백을 설명해 보라.
 2. 모범답안이 왜 백그라운드인지, 왜 하필 `afterCommit`인지 한 호흡에 설명하라.
 3. 압박 모드에서 본질문이 왜 3개인지(그리고 어떻게 총 6개가 되는지) 말하라.
 4. "자체 LLM으로 질문을 만든다"가 왜 아직 사실이 아닌지, 코드 근거 한 줄(`OSS_GENERATION_TASKS`)로 설명하라.
@@ -215,7 +216,7 @@ LLM 호출이 성공하면 `ai_usage_log`에 `feature_type=INTERVIEW_QUESTION_GE
 
 ## 퀴즈
 
-<QuizBox question="예상 질문 생성 시 LLM 프롬프트(userPrompt)에 실제로 들어가는 입력은?" :choices="['회사명·직무명·면접 모드·공고 원문(B)', '회사·직무·공고 + C 적합도 + A 프로필 전부', 'C 적합도 점수만', '공고 원문 없이 회사·직무만']" :answer="0" explanation="코드(InterviewOpenAiClient.generateQuestions)의 userPrompt에는 회사명·직무명·면접 모드 라벨·공고 원문(B)만 들어간다. 기획이 약속한 적합도(C)·프로필(A)는 아직 프롬프트에 미연결이다." />
+<QuizBox question="예상 질문 생성 시 실제로 조합하는 입력은?" :choices="['회사명·직무명·공고만', 'A 프로필 + B 공고·기업분석 + C 최신 적합도(없으면 A/B로 계속)', 'C 적합도 점수만', '커뮤니티 게시글만']" :answer="1" explanation="findPreparationContext와 capturePreparationContext가 A/B/C 정본을 조합하고 원천 ID와 C 핵심 결과를 세션 source_snapshot에 고정한다. C가 없어도 A/B로 계속 생성한다." />
 
 <QuizBox question="모범답안 생성을 트랜잭션 커밋 후(afterCommit) 백그라운드로 돌리는 가장 직접적인 이유는?" :choices="['LLM 비용을 아끼려고', '백그라운드 스레드의 별도 커넥션이 방금 INSERT한 질문을 보려면 커밋이 끝나야 하기 때문', '모범답안이 질문보다 먼저 필요해서', 'OpenAI 호출이 트랜잭션 안에서 금지돼서']" :answer="1" explanation="백그라운드 스레드는 별도 DB 커넥션을 쓴다. 커밋 전에는 방금 INSERT한 질문이 그 커넥션에서 안 보이므로 model_answer UPDATE가 누락된다. afterCommit으로 커밋 가시성을 보장한다. (질문 표시를 막지 않으려고 비동기로 돌리는 것은 또 다른 이유다.)" />
 

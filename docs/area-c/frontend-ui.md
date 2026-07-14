@@ -4,7 +4,16 @@
 
 ## 1. 한 줄 정의 · 이 페이지가 답하는 면접 질문
 
-영역 C의 프론트엔드는 **홈(`/`) → 대시보드(`/dashboard`) → 취업분석(`/analysis`, 5탭) → 지원건 상세 적합도 탭(`/applications/{id}` fit)** 으로 이어지는 "이 공고에 지원해도 되나 / 무엇을 보완하나 / 다음 어디로"의 화면 흐름이다.
+영역 C의 프론트엔드는 **홈(`/`) → 대시보드(`/dashboard`) → 취업분석 허브(`/analysis`) → 지원건 상세 적합도(`/applications/{id}/fit`)** 으로 이어지는 "이 공고에 지원해도 되나 / 무엇을 보완하나 / 다음 어디로"의 화면 흐름이다. 취업분석·플래너·카탈로그는 허브와 세부 페이지가 독립 URL을 가진다.
+
+| 허브 | 세부 경로 |
+| --- | --- |
+| `/analysis` | `/analysis/trends`, `/weaknesses`, `/readiness`, `/interview-scores`, `/recommendations` |
+| `/planner` | `/planner/schedule`, `/planner/memos`, `/planner/overlays` |
+| `/catalog` | `/catalog/ncs`, `/catalog/certificates` |
+| `/applications` | `/applications/compare`, `/strategy`, `/learning` |
+
+`/api/catalog/ncs`와 `/api/catalog/certificates`는 목록·검색을, 각 `/{id}`는 상세를 제공한다. NCS·국가기술자격 데이터는 적합도 판단 자체를 LLM에 넘기기 위한 것이 아니라 결정론적 근거와 학습 추천 탐색 범위를 보강한다.
 
 이 페이지가 답하는 면접 질문:
 

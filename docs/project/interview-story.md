@@ -171,7 +171,7 @@ private static final Map<String, List<String>> DEPS = Map.of(
 | 자체 LLM | 면접·첨삭 파인튜닝 트랙 진행(Qwen3 LoRA), 평가 하니스 | 담당별 자체모델 생성 라이브 투입 |
 
 :::warning 수치 표기 주의
-테이블 수는 기준 커밋의 canonical `schema.sql`에서 **168개**로 계수했고, 바뀔 수 있으므로 SHA와 함께 말한다. AI 기능 번호(#1~34)와 영역(A~F)은 제품 분류 기준으로 사용한다.
+테이블 수는 기준 커밋의 canonical `schema.sql`에서 **172개**로 계수했고, 바뀔 수 있으므로 SHA와 함께 말한다. AI 기능 번호(#1~34)와 영역(A~F)은 제품 분류 기준으로 사용한다.
 :::
 
 ---

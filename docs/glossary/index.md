@@ -78,7 +78,7 @@
 | CORS | `SecurityConfig`의 허용 오리진 `localhost:5173`, `capacitor://localhost` |
 | ApiResponse | `common/web/ApiResponse` record (`success`, `code`, `message`, `data`) |
 | 예외/에러코드 | `BusinessException` + `ErrorCode` enum + `GlobalExceptionHandler` |
-| SPA / 컴포넌트 / Hook | React Router 7, `app/components/ui`, `useApplicationFitAnalysis` |
+| SPA / 컴포넌트 / Hook | React Router 8, `app/components/ui`, `useApplicationFitAnalysis` |
 | CI/CD | GitHub Actions 5종 (`frontend-ci`, `service-pipeline-ci`, `deploy-demo` 등) |
 
 :::tip 영역 표시 (정직하게 말하기)

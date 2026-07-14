@@ -19,12 +19,14 @@ selector는 기준 SHA 이후 변경 파일을 보고 필요한 체크만 고른
 | --- | --- |
 | `PASS` | 기록된 기준점에서 해당 전체 검증을 통과 |
 | `PASS_TARGETED` | 이전 전체 검증 뒤 바뀐 영향 범위만 재검증 |
+| `PASS_MANUAL` | 운영 계정·단말·유료 공급자 시나리오를 책임자가 직접 완주(민감 증거는 미저장) |
 | `PENDING_LIVE` | 코드·로컬 검증은 됐지만 실제 배포 뒤 확인 필요 |
 | `BLOCKED_EXTERNAL` | 공급자 콘솔·자격증명·서명 계정 같은 외부 조건 대기 |
+| `DEFERRED` | 현재 시연 완료 조건과 분리해 명시적으로 미룬 후속 운영 항목 |
 
 `BLOCKED_EXTERNAL`은 구현 실패와 다르다. mock 데모는 통과할 수 있어도 실 OAuth·SMS·유료 모델 호출은 공급자 설정 없이는 검증할 수 있다.
 
-## 2026-07-12 기록의 범위
+## 2026-07-14 최종 기록의 범위
 
 검증 원장에는 다음 증거가 기록돼 있다.
 
@@ -37,8 +39,12 @@ selector는 기준 SHA 이후 변경 파일을 보고 필요한 체크만 고른
 - 사용자 콘텐츠·관계의 소프트 삭제·재활성·orphan 방지 확인
 - 웹·백엔드·DB·Android 배포 및 readiness 확인
 - 운영 API 장애일 때만 독립 mock 백업으로 전환하는 경로 확인
+- PR #448 필수 Frontend·Service·Documentation CI와 strict selector 통과
+- `20260714_auto_prep_case_dedupe.sql` 운영 적용, backend/DB readiness `UP`
+- backend·web·sanitized mock 배포와 Android `live-pr448` release 성공
+- Google/Kakao/Naver OAuth, Claude Haiku/OpenAI GPT, SMS 수동 live 완주(`PASS_MANUAL`)
 
-이 목록은 원장 기준 커밋의 증거다. 현재 소스 SHA가 더 새로우면 selector 결과를 다시 실행해야 “현재도 전체 PASS”라고 말할 수 있다.
+이 목록은 PR #448 merge `167f5feffa6f80b55b47333565a7d357821c1e5f`와 최종 원장 PR #449를 포함한 기록이다. Learning 기준 SHA `23bb4d22`까지의 이후 변경은 문서·서브모듈 pointer와 화면 설명 변경이며, 기능 변경이 생기면 selector가 고른 범위만 다시 검증한다.
 
 ## 플랫폼별 시연 핵심
 
@@ -54,13 +60,13 @@ selector는 기준 SHA 이후 변경 파일을 보고 필요한 체크만 고른
 
 공개 코드에는 자격증명을 넣지 않는다. 다음은 시연 전에 운영자가 별도로 확인해야 한다.
 
-- Google/Kakao/Naver 공급자 콘솔의 client 설정과 HTTPS 반환 주소
-- iOS Universal Link에 필요한 Apple 계정 식별 정보
-- 실 유료 AI provider 자격증명과 실제 모델 허용 범위
-- SMS 공급자 계약·발신자 등록·키
+- Google/Kakao/Naver 공급자 콘솔의 client 설정과 HTTPS 반환 주소 — 2026-07-14 수동 live 완주
+- iOS Universal Link에 필요한 Apple Team ID — 개발자 활성화·테스트 중이며 Team ID 발급과 운영 전환은 `DEFERRED`
+- 실 유료 AI provider 자격증명과 실제 모델 허용 범위 — Claude Haiku·OpenAI GPT 수동 live 완주
+- SMS 공급자 계약·발신자 등록·키 — 실제 단말 수신·인증 수동 live 완주
 - Android release 인증서와 공개 App Link 지문 일치
 
-mock 통과는 이 실 공급자 검증을 대체하지 않는다. 반대로 외부 키가 없다고 핵심 UI·DB·fallback 데모 전체를 실패로 보지도 않는다.
+mock 통과는 실 공급자 검증을 대체하지 않는다. 위 `PASS_MANUAL`은 CI 성공과 다른 증거이며 계정·토큰·응답 원문은 저장소에 남기지 않는다. Apple Team ID는 아직 발급하지 않았고 현재 시연 차단 사항이 아니다.
 
 ## 장애 백업 우선순위
 

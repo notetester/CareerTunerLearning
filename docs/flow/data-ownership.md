@@ -1,6 +1,6 @@
 # 데이터 소유권 · 읽기전용 경계 맵
 
-> 기준 커밋의 canonical DDL 168개 테이블을 6개 영역(A~F)과 공통 영역이 나눠 소유한다. 핵심 규칙은 단 하나 — **각 영역은 자기 결과 테이블을 쓰고, 타 영역 원본은 읽기전용으로만 참조한다.** 정합성은 FK와 불변 입력 스냅샷을 함께 사용해 지킨다.
+> 기준 커밋의 canonical DDL 172개 테이블을 6개 영역(A~F)과 공통 영역이 나눠 소유한다. 핵심 규칙은 단 하나 — **각 영역은 자기 결과 테이블을 쓰고, 타 영역 원본은 읽기전용으로만 참조한다.** 정합성은 FK와 불변 입력 스냅샷을 함께 사용해 지킨다.
 
 이 페이지는 6개 영역을 가로지르는 "데이터의 소유·참조·정합성" 그림을 다룬다. 각 영역 테이블의 내부 설계 상세는 해당 영역 페이지에 있으니, 여기서는 **경계가 어떻게 그어지고 왜 그렇게 그었는가**에 집중한다.
 
@@ -25,14 +25,14 @@
 | 영역 | 소유 결과 테이블(대표) | 타 영역에 제공(읽기전용) | 상세 |
 | --- | --- | --- | --- |
 | **A 회원/프로필** | `users`, `user_profile`(1:1), `user_consent`, 인증/세션 계열 | `user_profile` 원천 → B/C/D/E. **수정 책임은 A** | [/area-a/](/area-a/) |
-| **B 지원건/공고** | `application_case`, `job_posting`, `job_analysis`, `company_analysis` | 공고 구조화 결과 → C/D/E 읽기전용 | [/area-b/](/area-b/) |
-| **C 적합도/대시보드** | `fit_analysis`(불변), `fit_analysis_condition_match`, `career_analysis_run` | 적합도 결과 → D 참조. **원본 비수정** | [/area-c/](/area-c/) |
+| **B 지원건/공고** | `application_case`, `job_posting`, `job_analysis`, `company_analysis`, `auto_prep_case_dedupe` | 공고 구조화 결과 → C/D/E 읽기전용 | [/area-b/](/area-b/) |
+| **C 적합도/대시보드** | `fit_analysis`(불변), `fit_analysis_condition_match`, `career_analysis_run`, `ncs_classification`, `certificate*` | 적합도·카탈로그 결과 → D·학습 추천 참조. **원본 비수정** | [/area-c/](/area-c/) |
 | **D 면접** | `interview_session/question/answer`, `interview_agent_step`, `interview_knowledge`, `file_asset` | 답변·평가 → C 장기경향·E 첨삭 입력 | [/area-d/](/area-d/) |
 | **E 첨삭/결제** | `correction_request`, `payment`, `credit_transaction`, `benefit_transaction`, `ai_usage_log` | (원장 분리) 첨삭 원문/결과 별도 저장 | [/area-e/](/area-e/) |
 | **F 커뮤니티/CS** | `community_*`, `support_ticket`, `notice`, `faq`, `notification`, `push_subscription` | 추출 면접질문 → D 참고 | [/area-f/](/area-f/) |
 
 ::: tip 테이블 수 표기
-기준 커밋의 canonical `schema.sql`은 서로 다른 `CREATE TABLE` 선언 **168개**다. 이 숫자는 공통·운영 테이블까지 포함한 소스 계수이며, 기능별 소유권은 테이블 수보다 쓰기 주체와 데이터 생명주기로 판단한다.
+기준 커밋의 canonical `schema.sql`은 서로 다른 `CREATE TABLE` 선언 **172개**다. 이 숫자는 공통·운영 테이블까지 포함한 소스 계수이며, 기능별 소유권은 테이블 수보다 쓰기 주체와 데이터 생명주기로 판단한다.
 :::
 
 영역 간 FK는 거의 전부 두 허브로 수렴한다. 화살표는 "참조(읽기) 방향"이다.
@@ -69,16 +69,16 @@
 
 - **소유**: `user_profile`(`user_id` UNIQUE, 1:1). `skills`/`career`/`projects`/`self_intro` 등이 JSON·MEDIUMTEXT로 들어있다.
 - **제공**: B/C/D/E가 전부 이 한 행을 입력으로 읽는다. 단, **쓰기는 오직 A만** 한다. 다른 영역이 프로필을 고치는 일은 없다.
-- 정합성 포인트: `user_profile`은 **단일 가변 행**이다(전용 버전 테이블 없음, `updated_at`만 갱신). 그래서 "과거 시점 프로필"을 보존할 책임은 A가 아니라 **그 입력을 쓴 소비자 영역**에 있다(아래 4장 스냅샷).
+- 정합성 포인트: `user_profile`은 현재 1행이고 저장마다 `version_no`가 증가한다. 같은 transaction에서 `user_profile_version` 불변 행을 만들며, 클라이언트가 읽은 `baseVersionNo`가 현재와 다르면 409로 거부한다. 소비자 영역의 실행 snapshot은 이 공통 입력 버전과 별도로 유지한다.
 
 ### B — 공고를 구조화해 모두에게 읽기전용으로 푼다
 
-- **소유**: `application_case`(핵심 단위), `job_posting`(원문), `job_analysis`(필수/우대/담당업무), `company_analysis`(기업현황).
+- **소유**: `application_case`(핵심 단위), `job_posting`(원문), `job_analysis`(필수/우대/담당업무), `company_analysis`(기업현황). AutoPrep 공고 파일 재시도는 `auto_prep_case_dedupe`의 `(user_id, file_id)` 키로 같은 지원 건을 재사용한다.
 - **제공**: C 적합도·D 면접·E 첨삭이 `application_case_id`로 이 결과들을 읽는다. B가 한 번 구조화하면 하류 세 영역이 같은 사실을 공유한다(중복 분석 방지).
 
 ### C — 남의 데이터로 분석하되 원본을 건드리지 않는다
 
-- **소유**: `fit_analysis`(점수·근거·전략, **불변/append-only**), `fit_analysis_condition_match`(조건 매트릭스 정규화), `career_analysis_run`(장기경향).
+- **소유**: `fit_analysis`(점수·근거·전략, **불변/append-only**), `fit_analysis_condition_match`(조건 매트릭스 정규화), `career_analysis_run`(장기경향), `ncs_classification`, `certificate`, `certificate_exam_schedule`(근거·학습 카탈로그).
 - **입력(읽기전용)**: A `user_profile` + B `job_analysis`/`job_posting`. 둘 다 C와 무관하게 계속 바뀐다.
 - 정합성 포인트: C는 분석에 쓴 입력을 `fit_analysis.source_snapshot`(JSON)에 **복사해 동결**하고, `career_analysis_run.input_snapshot` + `input_fingerprint`로 캐시한다. 자세한 동작은 [C 적합도](/area-c/fit-analysis)·[C 데이터 모델](/area-c/data-model).
 
@@ -142,7 +142,7 @@ E 첨삭이 `original_text`/`improved_text`를 나눠 저장하는 건 단순 UX
 
 | 항목 | 상태 |
 | --- | --- |
-| 영역별 소유 테이블·FK 경계(기준 SHA 168개) | **구현됨** (`schema.sql` DDL) |
+| 영역별 소유 테이블·FK 경계(기준 SHA 172개) | **구현됨** (`schema.sql` DDL) |
 | C 스냅샷·핑거프린트 캐시(`source_snapshot`/`input_snapshot`/`input_fingerprint`) | **구현됨** |
 | `fit_analysis` 불변(append-only) + `condition_match` 정규화 | **구현됨** |
 | E 첨삭 원문/결과 분리(`original_text`/`improved_text`) | **구현됨** |
@@ -153,7 +153,7 @@ E 첨삭이 `original_text`/`improved_text`를 나눠 저장하는 건 단순 UX
 ## 6. 면접 답변 — 데이터 소유권을 한 흐름으로
 
 ::: details 모범 답안(2분 분량)
-"CareerTuner는 기준 커밋에서 168개 테이블을 6개 기능 영역과 공통 영역이 **수직으로 소유**합니다. 허브는 둘이에요 — 회원의 `users`, 그리고 핵심 단위인 `application_case`. 많은 기능 테이블이 이 둘을 기준으로 연결됩니다.
+"CareerTuner는 기준 커밋에서 172개 테이블을 6개 기능 영역과 공통 영역이 **수직으로 소유**합니다. 허브는 둘이에요 — 회원의 `users`, 그리고 핵심 단위인 `application_case`. 많은 기능 테이블이 이 둘을 기준으로 연결됩니다.
 
 규칙은 단순합니다. **각 영역은 자기 결과 테이블만 쓰고, 남의 원본은 읽기전용으로만 봅니다.** 예를 들어 적합도 분석을 하는 C는 A의 프로필과 B의 공고분석을 입력으로 읽지만, 그 원본은 한 글자도 안 고치고 결과를 자기 `fit_analysis`에 INSERT합니다.
 

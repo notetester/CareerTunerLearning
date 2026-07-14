@@ -204,7 +204,7 @@ public TokenResponse refresh(String refreshToken, LoginRequestContext context) {
 
 - 프런트는 토큰을 `localStorage`(`careertuner.auth`)에 보관 → XSS 시 노출 위험. 쿠키(HttpOnly) 대비 트레이드오프다.
 - OAuth 콜백은 토큰을 URL `#fragment`로 프런트에 넘긴다 — 브라우저 히스토리/로그 노출 가능성.
-- 클라이언트 라우트 가드가 없어 비로그인 상태로 보호 페이지 진입은 가능하나, API가 401을 내며 서버가 최종 권위를 쥔다.
+- 보호 화면은 `withAuthGate`, AI 데이터 화면은 `withConsentGate`로 진입을 차단한다. 이 UX 게이트와 별개로 최종 접근 권위는 서버의 401/403·소유권 검사다.
 
 :::warning 사실 정정
 같은 비밀키로 Access JWT와 OAuth state JWT(`type=oauth_state`, 5분)를 모두 서명하지만, **검증 시 `type` 클레임을 확인**하므로 서로의 자리에 쓸 수 없다. "JWT면 다 통과"가 아니다.

@@ -57,7 +57,7 @@ public class CareerTunerApplication {
 
 | 항목 | 값 |
 | --- | --- |
-| Spring Boot 플러그인 | `org.springframework.boot` **4.0.6** |
+| Spring Boot 플러그인 | `org.springframework.boot` **4.1.0** |
 | 의존성 관리 | `io.spring.dependency-management` (BOM 버전 정렬) |
 | Java toolchain | **21** |
 | 실행 포트 | 8080 (`/api/**` 하위 컨트롤러) |

@@ -129,7 +129,7 @@ langchain4j:
       think: false         # 추론 토큰 끄기(응답 노이즈 제거)
 ```
 
-`langchain4j-ollama-spring-boot4-starter`가 위 설정을 읽어 `ChatModel` 빈을 자동 생성한다. 의존성은 `dev.langchain4j:langchain4j-spring-boot4-starter:1.16.3-beta26`(스프링 부트 4 전용 스타터).
+`langchain4j-ollama-spring-boot4-starter`가 위 설정을 읽어 `ChatModel` 빈을 자동 생성한다. 기준 SHA의 Spring Boot 4 전용 스타터와 Ollama 스타터는 `1.17.2-beta27`이고, Anthropic·OpenAI 모듈은 `1.17.2`다.
 
 ## 6. 면접 답변 3단계 (초간단 / 기본 / 꼬리질문 대응)
 

@@ -49,6 +49,19 @@ const needsBFailureLogs = needsJobAnalysis || needsCompanyAnalysis;
   | `applications/:id/:section/:mode` | 분석 탭의 `edit` 모드 |
 
   탭 키는 `overview \| posting \| jobAnalysis \| companyAnalysis \| fit`, URL slug는 `overview/posting/job-analysis/company-analysis/fit`. **view/edit 모드 분리는 공고분석·기업분석 탭에만 존재**한다(`isBAnalysisTab` + `detailPath()`가 `/edit` 접미사를 붙임). 잘못된 slug나 view 모드인데 `/edit`가 붙은 URL은 `useEffect`가 `navigate(..., { replace: true })`로 교정한다.
+
+  상위 지원 건 메뉴도 한 화면 안의 탭이 아니라 독립 경로로 분리됐다.
+
+  | path | 화면 |
+  | --- | --- |
+  | `/applications` | 지원 건 허브 |
+  | `/applications/list`, `/new`, `/trash` | 목록·등록·휴지통 |
+  | `/applications/compare` | 여러 지원 건 적합도 비교 |
+  | `/applications/strategy` | 지원 전략 종합 |
+  | `/applications/learning` | 학습·자격증 종합 |
+  | `/jobs`, `/jobs/:id` | 공개 채용공고 게시판·상세 |
+
+  채용공고 게시판은 커뮤니티 카테고리가 아니다. 커뮤니티에서는 `/jobs`로 이동하는 CTA만 제공하고, 기업 계정 등록은 `/company/manage`의 관리 흐름으로 연결한다.
 - **B 패널 4종**(`components/`): `ApplicationOverviewPanel`, `JobPostingPanel`, `JobAnalysisPanel`, `CompanyAnalysisPanel`. (적합도 탭의 `FitAnalysisPanel`/`StrategyPanel`/`LearningRecommendationPanel`은 영역 C 소유이고, B 패널과 같은 `features/applications/` 폴더를 공유하지만 컴포넌트 단위로 소유권이 갈린다.)
 - **공유 소형 컴포넌트**: `ApplicationExtractionBadge`(추출 상태 + 품질 배지), `AnalysisFailureNotice`(실패 메시지 마스킹), `AnalysisStructuredText`(JSON/텍스트 자동 분기 렌더), `StructuredRowsEditor`(제네릭 행 편집기).
 - **순수 헬퍼(`utils/jobPostingConfirm.ts`)**: `hasPostingSourceChange`, `isConfirmableTextCorrection`, `shouldDisableSaveForReview`, `currentPostingText`, `requestPostingText` — 저장 라우팅 판정을 패널과 페이지가 공유.
