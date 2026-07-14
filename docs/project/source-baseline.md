@@ -7,25 +7,28 @@
 | 항목 | 확인값 |
 | --- | --- |
 | 소스 브랜치 | CareerTuner `dev` |
-| 검토 커밋 | `d00a57fc8d1e3499ba6c23acec498c47ac0d5d4c` |
-| 검토일 | 2026-07-13 |
+| 검토 커밋 | `23bb4d221a9568db6b46b08af57514a5097ee33a` |
+| 검토일 | 2026-07-14 |
 | 백엔드 | Spring Boot 4.1.0 · Java 21 · MyBatis · MySQL 8 |
 | 웹/모바일 공통 UI | React 19.2.7 · React DOM 19.2.7 · React Router 8.2.0 |
 | 프런트 빌드 | Vite 8.1.4 · TypeScript 7.0.2 · Tailwind CSS 4.3.2 |
 | 모바일 | Capacitor 8.4.1 · Android 네이티브 프로젝트 |
 | 데스크톱 | C++17 · Qt 6.11+ · QML · CMake |
-| 정본 스키마 | `backend/src/main/resources/db/schema.sql`의 서로 다른 `CREATE TABLE` 168개 |
+| 정본 스키마 | `backend/src/main/resources/db/schema.sql`의 서로 다른 `CREATE TABLE` 172개 |
 
-테이블 수는 특정 커밋의 정적 계수다. 패치가 추가되면 바뀔 수 있으므로 면접에서는 “기준 커밋에서 168개”라고 말하고 영구 불변 숫자처럼 표현하지 않는다.
+테이블 수는 특정 커밋의 정적 계수다. 패치가 추가되면 바뀔 수 있으므로 면접에서는 “기준 커밋에서 172개”라고 말하고 영구 불변 숫자처럼 표현하지 않는다.
 
 ### 직전 기준선 이후 표적 확인
 
-직전 검토 SHA `2c4b11a9` 이후 두 변경을 별도로 확인했다.
+직전 Learning 기준선 `d00a57fc` 이후 변경은 전 영역 전체 재검증이 아니라 변경 파일과 최종 원장의 증거를 따라 확인했다.
 
-- 관리자 AI 상담의 미답 사유는 FAQ 유사도가 임계값 미만인 경우와, 임계값을 넘었지만 라우터가 상담 경로를 고른 경우를 구분해 모순된 문구를 제거했다.
-- 커뮤니티 글쓰기와 스크랩 상세는 flex item의 `width: 100%`와 desktop/mobile padding을 명시해 데스크톱에서도 모바일 폭처럼 수축하던 문제를 고쳤다.
+- A: 프로필 전체·섹션 저장과 문서 가져오기에 버전 기반 3-way merge, 늦게 도착한 응답 방어, 미저장 이탈 경고와 원본 파일 정리가 추가됐다. 프로필은 `/profile/*` 분리 경로를 실제 사용한다.
+- B/C: 지원 건 비교·전략·학습, 취업분석, 플래너, 카탈로그가 허브와 세부 경로로 분리됐고 NCS·자격증 카탈로그 API/DB가 추가됐다.
+- D/E: AutoPrep 취소·첨부 재시도·빈 면접 세션 정리와 모델 재시도 선택 계약, PG 승인 전 유료 권한 금지 경계를 보강했다.
+- F: 커뮤니티 차단·탈퇴 사용자 필터와 관계 soft delete, 서버 전수 카테고리 집계, 채용공고 전용 게시판 이동 경계를 보강했다.
+- 플랫폼/배포: PR #448의 필수 CI, DB patch 적용, backend/web/mock 배포와 Android live release가 통과했다. 데스크톱 소스는 바뀌지 않아 기존 패키지 실기 증거를 승계한다.
 
-두 변경은 모델·DB·권한 계약을 바꾸지 않고 해당 관리자 설명 문구와 커뮤니티 반응형 레이아웃에만 영향을 준다.
+운영 OAuth 3종, Claude Haiku/OpenAI GPT, SMS는 프로젝트 책임자의 수동 live 완주(`PASS_MANUAL`)다. Apple은 개발자 활성화·테스트 단계이며 Team ID 기반 iOS Universal Link는 시연 범위 밖 `DEFERRED`다.
 
 ## 무엇을 사실로 채택하는가
 
@@ -86,3 +89,5 @@
 - `docs/verification/DEMO_READINESS_LEDGER.md`
 - `docs/verification/demo-readiness-checks.json`
 - `scripts/verification/select-demo-regression-scope.mjs`
+- `docs/AI_REPOSITORY_BOUNDARIES.md`
+- `.gitmodules`

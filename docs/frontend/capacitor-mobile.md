@@ -73,6 +73,10 @@ mock demo build는 backend 없이 동작한다. 단, 운영 API가 정상일 때
 
 코드·APK 빌드 성공만으로 verified 완료를 주장하지 않는다. 공개 JSON, 실제 서명 인증서, 설치된 앱의 OS 상태가 모두 일치해야 한다.
 
+### iOS 현재 경계
+
+Apple 개발자 기능은 활성화해 테스트 중이지만 Team ID는 아직 발급하지 않았다. 따라서 `IOS_APP_LINK_TEAM_IDS`가 비어 있을 때 생성되는 AASA의 `details: []`는 실수나 장애가 아니라 iOS callback을 fail-closed 하는 안전 기본값이다. Team ID 발급 후 repository variable 등록 → 웹 재배포 → AASA `details` → 실기기 Universal Link 순으로 확인한다. 이 후속 작업은 현재 웹·Android·Desktop 시연의 차단 사항이 아닌 `DEFERRED`다.
+
 ## 권한과 기능
 
 | 권한/기능 | 사용처 | 실패 처리 |

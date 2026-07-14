@@ -131,7 +131,7 @@ event: done        → "완료"
 ```
 
 - 병렬 파트가 **같은 emitter에 동시에** 쓰므로, `send()`를 `synchronized(emitter)`로 보호한다. 타임아웃은 5분(`SSE_TIMEOUT_MS=300_000L`).
-- 프런트(`frontend/src/features/autoprep/`)는 SSE가 `ApiResponse` 엔벨로프를 안 타므로 공통 `api()` 래퍼 대신 `fetch`+수동 토큰으로 받고 `\n\n` 단위로 파싱한다. `useAutoPrepRun.ts`의 `reduce()`가 이벤트를 `pending→running→done/skipped/failed`로 변환하고, `AbortController`로 취소를 지원한다.
+- 프런트(`frontend/src/features/autoprep/`)는 SSE가 `ApiResponse` 엔벨로프를 안 타므로 공통 `api()` 래퍼 대신 `fetch`+수동 토큰으로 받고 `\n\n` 단위로 파싱한다. `useAutoPrepRun.ts`의 `reduce()`가 이벤트를 `pending→running→done/skipped/failed`로 변환한다. 취소할 때는 `AbortController`로 브라우저 스트림을 닫는 데 그치지 않고 `POST /api/auto-prep/run/cancel`에 사용자 범위 `runId`를 보내 서버 실행도 협력적으로 중단한다. 서버는 취소 요청이 스트림 등록보다 먼저 도착하는 순서 역전을 짧은 TTL tombstone으로 흡수한다.
 
 ### ④-b 6파트 핸들러 = 6영역 도메인 서비스 래퍼
 
@@ -149,7 +149,9 @@ event: done        → "완료"
 각 영역의 내부 동작은 해당 페이지로: [C 적합도 분석](/area-c/fit-analysis), [D 면접 오케스트레이터](/area-d/orchestrator-interview).
 
 :::details 첨부 게이팅 (AutoPrepAttachmentLoader)
-요금제별 첨부 한도가 있다: FREE/BASIC 1개, PRO/PREMIUM 5개. `text/*` MIME만 본문을 추출하고 12,000자에서 자른다. 한도 초과·로드 실패는 로그만 남기고 **완주를 막지 않는다**(부분 실패에 관대한 일관된 철학).
+요금제별 첨부 한도가 있다: FREE/BASIC 1개, PRO/PREMIUM 5개. `text/*`·Markdown·텍스트 PDF·`.docx`는 공용 추출기로 본문을 읽고 12,000자에서 자른다. 한도 초과·로드 실패는 로그만 남기고 **완주를 막지 않는다**(부분 실패에 관대한 일관된 철학).
+
+공고 파일로 지원 건을 만드는 경로는 `POST /api/auto-prep/job-posting-case/upload`를 사용한다. `(user_id, pending_file_id)` 예약 행이 응답 유실 뒤 재시도에도 같은 지원 건 ID를 돌려줘 중복 생성을 막는다. 프런트는 업로드와 소비 사이의 파일을 pending registry에 등록하고, 교체·취소·모달 이탈 시 아직 소비되지 않은 파일을 회수한다.
 :::
 
 ---
@@ -175,8 +177,10 @@ event: done        → "완료"
 | 두뇌(플래너) 의도 파싱·의존 클로저·지원 건 매칭 | 구현됨 (`AutoPrepPlanner`) |
 | 의존 그래프 병렬 실행·부분 실패 완주 | 구현됨 (`AutoPrepOrchestrator`) |
 | SSE 스트리밍(plan/part-start/substep/part-done/done) | 구현됨 (`runStream` + `useAutoPrepRun.ts`) |
+| 사용자·실행 범위 서버 취소·선행 취소 tombstone | 구현됨 (`/run/cancel` + `AutoPrepRunCancellationRegistry`) |
 | 6파트 핸들러(A~F 래퍼) | 구현됨 (`*PrepHandler` 6개) |
-| 첨부 게이팅(요금제별 한도·12000자 컷) | 구현됨 (`AutoPrepAttachmentLoader`) |
+| 첨부 게이팅(요금제별 한도·공용 문서 추출·12000자 컷) | 구현됨 (`AutoPrepAttachmentLoader`) |
+| 공고 파일 지원 건 생성 멱등성·pending 파일 정리 | 구현됨 (`AutoPrepCaseCreationService` + `pendingAutoPrepFiles.ts`) |
 | 인테이크 챗봇 멀티턴·프런트 handoff | 구현됨 |
 | 챗봇 슬롯 영속화·PENDING 복원 | 구현됨 (`chatbot_intake_slot`) |
 | 두뇌·핸들러의 자체 OSS 생성 경로 | 게이트웨이는 폴백 지원하나 생성 화이트리스트는 현재 빈 집합 → 사실상 Claude/OpenAI |

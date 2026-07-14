@@ -17,7 +17,7 @@
 | 다크모드 테마 | `next-themes`, `styles/theme.css` `@custom-variant` | [Tailwind 다크모드](/frontend/tailwind-darkmode) |
 | PWA / 캐시 정책 | `vite.config.ts` `VitePWA` | [PWA](/frontend/pwa) |
 | 모바일 패키징 | `capacitor.config.ts` | [Capacitor](/frontend/capacitor-mobile) |
-| 라우팅 | `app/routes.ts` (React Router 7) | [라우팅](/frontend/react-router) |
+| 라우팅 | `app/routes.ts` (React Router 8.2.0) | [라우팅](/frontend/react-router) |
 
 :::tip 푸는 법
 보기를 보기 전에 먼저 머릿속으로 답을 말하고, 그다음 보기를 골라라. 보기를 보고 고르는 건 진짜 실력이 아니다.
@@ -85,7 +85,7 @@
 
 <QuizBox question="API 호출이 실패(res.ok=false 또는 success=false)했을 때 api 함수가 하는 일은?" :choices="['null을 반환', 'ApiError를 던진다(message·code·status 포함)', 'undefined를 반환하고 콘솔 경고', '자동으로 3회 재시도']" :answer="1" explanation="실패 시 ApiError(env.message, env.code, res.status)를 throw한다. 호출부는 try/catch나 훅의 error 상태로 받아 사용자에게 안내한다. 401만 예외적으로 먼저 리프레시를 시도한다." />
 
-<QuizBox question="라우팅(React Router 7)에서 일반 사용자 라우트와 관리자 라우트를 분리한 방식은?" :choices="['단일 거대한 routes 배열', 'app/routes.ts와 admin/routes.ts로 파일 분리(createBrowserRouter)', '서버 사이드 라우팅', 'URL 쿼리스트링으로만 구분']" :answer="1" explanation="createBrowserRouter 기반으로 app/routes.ts(사용자)와 admin/routes.ts(관리자)를 나눠 관리한다. 관리자 영역은 백엔드 /api/admin/**가 ADMIN 권한을 요구하는 것과 짝을 이룬다." />
+<QuizBox question="라우팅(React Router 8)에서 일반 사용자 라우트와 관리자 라우트를 분리한 방식은?" :choices="['단일 거대한 routes 배열', 'app/routes.ts와 admin/routes.ts로 파일 분리(createBrowserRouter)', '서버 사이드 라우팅', 'URL 쿼리스트링으로만 구분']" :answer="1" explanation="createBrowserRouter 기반으로 app/routes.ts(사용자)와 admin/routes.ts(관리자)를 나눠 관리한다. 관리자 영역은 백엔드 /api/admin/**가 ADMIN 권한을 요구하는 것과 짝을 이룬다." />
 
 <QuizBox question="api.ts의 buildHeaders가 요청 body가 FormData일 때 Content-Type을 application/json으로 강제하지 않는 이유를 설명하라." explanation="FormData를 보낼 때는 브라우저가 multipart/form-data와 boundary를 자동으로 설정해야 한다. 만약 Content-Type을 application/json으로 덮어쓰면 boundary가 빠져 서버가 멀티파트 경계를 파싱하지 못해 파일 업로드가 깨진다. 그래서 buildHeaders는 body가 FormData인지(isFormData) 검사해, FormData가 아니고 헤더에 Content-Type이 없을 때만 application/json을 세팅한다. 공고 PDF 업로드처럼 파일을 보내는 경로에서 중요한 분기다." />
 

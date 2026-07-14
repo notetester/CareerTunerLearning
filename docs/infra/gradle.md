@@ -81,7 +81,7 @@ jjwt는 **컴파일 시 보는 인터페이스(`jjwt-api`)**와 **실행 시 동
 :::
 
 :::warning 버전 명시가 필요한 경우 — LangChain4j
-대부분의 Spring 스타터는 BOM이 버전을 관리해 숫자가 없지만, LangChain4j는 별도 버전 체계라 직접 명시한다. 또한 이 프로젝트는 **Spring Boot 4**라 반드시 `-spring-boot4-starter`(Boot 3용 `-spring-boot-starter` 아님)를 써야 한다. 실제 선언: `dev.langchain4j:langchain4j-spring-boot4-starter:1.16.3-beta26`.
+대부분의 Spring 스타터는 BOM이 버전을 관리해 숫자가 없지만, LangChain4j는 별도 버전 체계라 직접 명시한다. 또한 이 프로젝트는 **Spring Boot 4**라 반드시 `-spring-boot4-starter`(Boot 3용 `-spring-boot-starter` 아님)를 써야 한다. 기준 SHA의 실제 선언은 Spring Boot 4 스타터·Ollama 스타터 `1.17.2-beta27`, Anthropic·OpenAI 모듈 `1.17.2`다.
 :::
 
 ### (2) 래퍼(gradlew)의 동작

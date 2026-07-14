@@ -12,9 +12,9 @@
 | --- | --- | --- |
 | UI 라이브러리 | React 19.2.7 | 컴포넌트 기반 화면 구성 |
 | 빌드 도구 | Vite 8.1.4 | 개발 서버(HMR) + 프로덕션 번들 |
-| 언어 | TypeScript 5.6 | 타입 안정성, `tsc --noEmit` 검증 |
-| 스타일 | Tailwind v4.1 (`@tailwindcss/vite`) | 유틸리티 클래스 + CSS 변수 다크모드 |
-| 라우팅 | React Router 7 | `createBrowserRouter` 기반 경로 |
+| 언어 | TypeScript 7.0.2 | 타입 안정성, `tsc --noEmit` 검증 |
+| 스타일 | Tailwind CSS 4.3.2 (`@tailwindcss/vite`) | 유틸리티 클래스 + CSS 변수 다크모드 |
+| 라우팅 | React Router 8.2.0 | `createBrowserRouter` 기반 경로 |
 | 전역 상태 | React Context + Zustand 5 | 인증은 Context, 나머지는 Zustand |
 | 폼 | React Hook Form 7.55 | 비제어 폼 + 검증 |
 | 차트 | Recharts 2.15 | 분석/대시보드 시각화 |

@@ -34,7 +34,7 @@
 | 스택(프) | React 19 · Vite 8 · TS · Tailwind v4 SPA · `/api/*` Vite 프록시 → 8080 |
 | 응답 규약 | 항상 `ApiResponse<T>` 엔벨로프(`common/web/ApiResponse`) |
 | 인증 | STATELESS + JWT(Access 30분 / Refresh 14일) |
-| 데이터 | 기준 SHA의 정본 DDL 168개 테이블, 허브 = `users`(A) · `application_case`(B) |
+| 데이터 | 기준 SHA의 정본 DDL 172개 테이블, 허브 = `users`(A) · `application_case`(B) |
 | 팀 | 6인 수직 분담 A~F + AI 기능 #1~34, 각자 사용자화면+API+관리자+AI+DB 소유 |
 | AI 통합 | `ai/autoprep` 오케스트레이터가 6영역 도메인 서비스를 의존 그래프로 병렬 실행 |
 | 본인 기여 | 면접에서 "내가 맡은 영역"을 한 줄로 — A~F 중 본인 담당을 [영역별 심화](/areas/)에서 골라 넣는다 |
@@ -164,7 +164,7 @@ AI 호출 비용은 `ai_usage_log`에 기록하되 **차감은 status가 SUCCESS
 | 자체 LLM | 면접 파인튜닝 트랙 진행, 임베딩(bge-m3)·검열(gemma) | 담당별 3B/8B 자체모델 생성 라이브 투입 |
 
 ::: warning 수치 표기 주의
-테이블 수는 기준 커밋의 canonical `schema.sql`에서 서로 다른 선언 **168개**로 계수했다. A의 AI 5개 기획 기능은 **3개 엔드포인트**(`/profile/ai/{summary,skills,completeness}`)로 통합 노출되므로 "5엔드포인트"로 말하지 않는다.
+테이블 수는 기준 커밋의 canonical `schema.sql`에서 서로 다른 선언 **172개**로 계수했다. A의 AI 5개 기획 기능은 **3개 엔드포인트**(`/profile/ai/{summary,skills,completeness}`)로 통합 노출되므로 "5엔드포인트"로 말하지 않는다.
 :::
 
 ---

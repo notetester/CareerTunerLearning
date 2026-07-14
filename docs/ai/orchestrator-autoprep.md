@@ -52,7 +52,9 @@ AutoPrep은 이 네 가지를 **서버 한 곳**으로 모은다. 프론트는 "
 
 :::warning 구현 vs 계획 구분
 - **구현됨**: 오케스트레이터 골격, 의존 그래프 병렬 실행, SSE 진행 보고, FIT/JOB 등 핸들러 연결, 부분 실패 시 FAILED 기록 후 완주.
-- **부분/진행 중**: 일부 파트 핸들러는 `enabled()=false`로 SKIPPED 처리(준비중)될 수 있다 — 오케는 그대로 완주한다.
+- **실행 제어**: `POST /api/auto-prep/run/cancel`은 사용자 범위 `runId`를 취소한다. 실행보다 취소가 먼저 도착해도 tombstone으로 기억해 다음 단계가 시작되지 않게 한다.
+- **공고 첨부**: `POST /api/auto-prep/job-posting-case/upload`는 이 사용자의 공고 파일을 지원 건으로 만든다. `(user_id, file_id)` 멱등 키로 재시도가 중복 지원 건을 만들지 않는다.
+- **첨부 생명주기**: 교체·재시도·취소·컴포넌트 종료 시 연결되지 않은 pending 파일을 정리하고, 정상 SSE `done/error`와 네트워크 EOF·abort·watchdog를 구분한다.
 - **설정 활성 경로**: C 영역 자체 모델은 학습·연결 검증을 마쳤고 `provider=oss`와 endpoint 설정으로 사용할 수 있다. 저장소 기본 FIT provider는 OpenAI다.
 :::
 

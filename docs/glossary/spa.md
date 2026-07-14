@@ -100,7 +100,7 @@ export async function api<T>(path, options, config) {
 ## 6. 면접 답변 3단계
 
 - **초간단(1문장)**: "SPA는 HTML을 한 번만 받고, 이후 화면 전환과 데이터는 브라우저의 자바스크립트가 처리하는 방식입니다."
-- **기본**: "CareerTuner 프론트는 React Router 7로 만든 SPA입니다. `routes.ts`의 `createBrowserRouter`가 URL을 컴포넌트로 매핑하고, 화면 전환은 서버 요청 없이 브라우저에서 일어납니다. 데이터는 `api.ts`의 제네릭 함수로 Spring Boot REST 백엔드를 `/api`로 호출해 JSON으로만 받습니다. 즉 프론트는 화면, 백엔드는 데이터로 책임이 완전히 분리됩니다."
+- **기본**: "CareerTuner 프론트는 React Router 8로 만든 SPA입니다. `routes.ts`의 `createBrowserRouter`가 URL을 컴포넌트로 매핑하고, 화면 전환은 서버 요청 없이 브라우저에서 일어납니다. 데이터는 `api.ts`의 제네릭 함수로 Spring Boot REST 백엔드를 `/api`로 호출해 JSON으로만 받습니다. 즉 프론트는 화면, 백엔드는 데이터로 책임이 완전히 분리됩니다."
 - **꼬리질문 대응**: "이 구조라서 같은 SPA 번들을 PWA와 Capacitor 모바일 앱이 그대로 재사용합니다. SPA의 대표 함정인 새로고침 404는 모든 경로를 `index.html`로 폴백시켜 해결하되, `/api`는 denylist로 제외했고, 인증은 `localStorage` 토큰 + 401 시 단일-플라이트 자동 리프레시로 처리합니다."
 
 ## 7. 자주 나오는 꼬리질문 + 모범답안

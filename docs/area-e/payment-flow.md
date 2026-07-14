@@ -44,6 +44,10 @@
 
 `POST /api/payments/toss/cancel`은 아직 승인되지 않은 READY 주문을 취소한다. PAID 결제를 단순 READY 취소 API로 되돌리지 않는다.
 
+## 승인 없는 권한 부여 금지
+
+예전의 직접 구독·크레딧 구매 형태인 `/api/billing/subscribe`, `/api/billing/credits/purchase`는 더 이상 공개 API가 아니다. 유료 플랜·크레딧은 반드시 `ready → Toss confirm → PAID` 이후에만 반영한다. 프런트에도 이 우회 경로가 없고 MVC 계약 테스트가 404를 고정한다.
+
 ## 환불 정책과 요청
 
 환불은 별도 사용자·관리자 흐름이다.

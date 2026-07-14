@@ -78,13 +78,28 @@ CareerTuner는 RAG를 배제하지 않았다. D 면접과 F 검색에는 실제 
 
 사용자가 모델을 고를 수 있는 D/E 재시도는 최초 모델을 기본값으로 유지하되 다른 모델을 다시 선택할 수 있다. “재시도는 무조건 최초 모델”이 아니다.
 
+## AI 자료 저장소 경계
+
+기준 SHA에서는 AI 자료를 성격별로 분리한다.
+
+| 제품 repo 경로 | 연결 저장소 | 책임 |
+| --- | --- | --- |
+| `backend/`, `frontend/`, `desktop/`, `ml/` | CareerTuner | 런타임, validator/runner, 작은 synthetic fixture와 짧은 상태 문서 |
+| `docs/ai-reports/` | CareerTunerAIDocs | 사람이 읽는 장문 실험 보고서와 누적 해석 |
+| `docs/ai-artifacts/` | CareerTunerAI | raw response, 반복 benchmark 결과, manifest, 4090 운영 자료 |
+| `docs/obsidian-vault/` | CareerTunerObsidian | 장기 맥락, 결정 로그, LLM Wiki·Graphify |
+| `docs/storyboard/` | CareerTunerDocs | A~F/TOTAL 스토리보드와 대표 산출물 |
+
+현재 구현을 판단할 때 raw artifact나 과거 storyboard를 런타임 정본으로 사용하지 않는다. 메인 repo가 고정한 submodule commit과 `.gitmodules`를 먼저 확인하고, 장문 보고서는 모델 주장 근거로만 교차 검증한다. 대형 weight·실사용 입력·자격증명은 어느 공개 저장소에도 넣지 않는다.
+
 ## 면접에서의 짧은 답변
 
 > “범용 LLM을 처음부터 사전학습하지 않았습니다. 데이터·장비·기간 대비 효용이 낮았기 때문에 공개 instruction 모델의 언어 능력을 보존하고, 도메인 출력 습관만 LoRA/QLoRA로 적응했습니다. 최신 사실은 모델별로 다릅니다. C와 E는 학습·평가·런타임 연결 근거가 있지만 기본 provider와 활성 설정은 별도이고, RAG도 D/F에는 연결했지만 C 단순 RAG는 hard-case 결과 때문에 비활성입니다. 점수와 권한 같은 결정은 모델이 아니라 서버 규칙이 확정합니다.”
 
 ## 근거 경로
 
-- `docs/AI_REPORT/CAREERTUNER_SELF_AI_MODEL_DEEP_DIVE.md`
+- `docs/ai-reports/areas/shared-ai/portfolio/careertuner-self-ai-model-deep-dive.md`
+- `docs/AI_REPOSITORY_BOUNDARIES.md`
 - `ml/career-strategy-llm/`
 - `ml/interview-finetune/`
 - `ml/interview-nonverbal/`

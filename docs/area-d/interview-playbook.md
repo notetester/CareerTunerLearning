@@ -126,7 +126,7 @@ submitAnswer
 | --- | --- | --- |
 | 자체 LLM **생성** | 미가동, 전부 Claude→OpenAI 폴백 | `OSS_GENERATION_TASKS=Set.of()`(빈 집합). QGEN 학습 데이터 seed당 1개로 부족 |
 | 자체 LLM **채점** | 코드 완비, 기본값 OpenAI | base-url 미설정 시 폴백. 실제 서빙 전까지 폴백 |
-| 질문 생성 입력 | 회사·직무·공고(B)만 주입 | 문서는 적합도(C)·프로필(A)도 약속하나 코드 미연결 (부분 구현) |
+| 질문 생성 입력 | A 프로필 버전 + B 공고·기업 분석 + C 최신 적합도 | 질문 시점 원천 ID·C 핵심 결과를 세션 snapshot으로 고정. C가 없으면 A/B로 계속 |
 | 꼬리질문 | 압박 모드 전용 | 모든 모드에 붙이면 길어지고 자체 PROBE 학습이 분산 (의도적 제한) |
 | AI 첨삭(개선답변) | 사실상 OSS 평가기에서만 채워짐 | OpenAI strict json_schema 경로는 `improvedAnswer` 미required → 빈 문자열 |
 | agent trace | 저장된 step을 클라이언트가 순차 재생 | 실시간 SSE 스트리밍은 후속(인증 헤더 제약으로 fetch-stream 필요) |
